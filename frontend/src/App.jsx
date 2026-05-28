@@ -9,6 +9,7 @@ import SubjectDetailView from './pages/SubjectDetailView';
 import CreateSubjectView from './pages/CreateSubjectView';
 import CreateTaskView from './pages/CreateTaskView';
 import LoginView from './pages/LoginView';
+import ForgotPasswordView from './pages/ForgotPasswordView';
 import CompletedTasksView from './pages/CompletedTasksView';
 
 import { ToastProvider } from './context/ToastContext';
@@ -22,7 +23,11 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl mx-auto shadow-lg shadow-blue-500/30 animate-pulse mb-4">E</div>
+          <img 
+            src="/logo.png" 
+            alt="EduTrack AI Logo" 
+            className="h-16 mx-auto object-contain animate-pulse mb-4" 
+          />
           <p className="text-gray-500 font-medium">Carregando...</p>
         </div>
       </div>
@@ -39,6 +44,7 @@ function AppRoutes() {
     <Routes>
       {/* Rota pública */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginView />} />
+      <Route path="/esqueci-senha" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordView />} />
 
       {/* Rotas protegidas */}
       <Route path="/" element={<ProtectedRoute><Layout><Navigate to="/dashboard" replace /></Layout></ProtectedRoute>} />

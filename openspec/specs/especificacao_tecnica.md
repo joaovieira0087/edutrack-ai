@@ -111,6 +111,8 @@ Toda a persistência utiliza MongoDB via Mongoose ODM. Os schemas utilizam `snak
   "nome": "String (required)",
   "email": "String (required, unique)",
   "senha": "String (required) — hash bcrypt, nunca texto plano",
+  "reset_code": "String (default: null) — código OTP numérico de 4 dígitos",
+  "reset_code_expires": "Date (default: null) — expiração do código (10 minutos)",
   "createdAt": "Date (auto)",
   "updatedAt": "Date (auto)"
 }
@@ -206,6 +208,8 @@ erDiagram
         String nome
         String email UK
         String senha
+        String reset_code
+        Date reset_code_expires
     }
 
     SUBJECTS {
@@ -242,6 +246,9 @@ Base URL: `http://localhost:5000/api`
 | `POST` | `/auth/signup` | — | Registro de novo usuário |
 | `POST` | `/auth/login` | — | Login com email/senha |
 | `GET` | `/auth/me` | `authMiddleware` | Retorna perfil do usuário logado |
+| `POST` | `/auth/forgot-password` | — | Solicita redefinição de senha e envia OTP |
+| `POST` | `/auth/verify-code` | — | Valida se o OTP de 4 dígitos é correto |
+| `POST` | `/auth/reset-password` | — | Redefine a senha usando OTP válido |
 
 **Fluxo de Autenticação:**
 
@@ -724,6 +731,7 @@ openspec/
 | Feature | Tier | Status |
 |---------|------|--------|
 | Autenticação JWT (Signup/Login/Me) | MVP | ✅ Implementado |
+| Recuperação de Senha (Forgot Password) | MVP | ✅ Implementado |
 | CRUD de Disciplinas com Tenant Isolation | MVP | ✅ Implementado |
 | CRUD de Tarefas com Status Engine | MVP | ✅ Implementado |
 | Dashboard com Progresso Ponderado | MVP | ✅ Implementado |
@@ -742,7 +750,6 @@ openspec/
 
 | Feature | Tier | Status |
 |---------|------|--------|
-| Recuperação de Senha (Forgot Password) | MVP | ⬜ Pendente |
 | Push Notifications (alertas de deadline) | Avançado | ⬜ Planejado |
 
 ---

@@ -34,9 +34,11 @@ const Layout = ({ children }) => {
       <aside className={`fixed inset-y-0 left-0 bg-white/80 backdrop-blur-xl border-r border-gray-100 w-64 transform transition-transform duration-300 ease-in-out z-30 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col`}>
         <div className="p-6 flex items-center justify-center lg:justify-start hover:opacity-80 transition-opacity">
           <Link to="/dashboard" className="flex items-center">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl mr-3 shadow-lg shadow-blue-500/30">
-              E
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="EduTrack AI Logo" 
+              className="h-9 mr-3 object-contain" 
+            />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-900 lg:block">
               EduTrack AI
             </span>

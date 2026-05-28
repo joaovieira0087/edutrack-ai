@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const LoginView = () => {
@@ -45,12 +45,11 @@ const LoginView = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo e Título  */}
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-3xl mx-auto shadow-lg shadow-blue-500/30 mb-6">
-            E
-          </div>
-          <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-900 tracking-tight">
-            EduTrack AI
-          </h1>
+          <img
+            src="/logo.png"
+            alt="EduTrack AI Logo"
+            className="h-24 mx-auto object-contain mb-4 drop-shadow-sm transition-transform hover:scale-105 duration-300"
+          />
           <p className="text-gray-500 mt-2 text-lg">
             {isSignup ? 'Crie sua conta para começar' : 'Acesse sua plataforma acadêmica'}
           </p>
@@ -83,6 +82,14 @@ const LoginView = () => {
               <input type="password" id="password" name="password" required minLength="6" value={formData.password} onChange={handleChange} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent block px-4 py-3.5 placeholder-gray-400 transition-shadow" placeholder="Mínimo 6 caracteres" />
             </div>
 
+            {!isSignup && (
+              <div className="text-right -mt-2">
+                <Link to="/esqueci-senha" className="text-sm font-bold text-blue-600 hover:text-indigo-700 transition-colors">
+                  Esqueci minha senha
+                </Link>
+              </div>
+            )}
+
             <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed mt-2">
               {isSubmitting ? (
                 <>
@@ -99,7 +106,7 @@ const LoginView = () => {
           </form>
 
           <div className="mt-6 text-center border-t border-gray-100 pt-6">
-            <button 
+            <button
               onClick={() => { setIsSignup(!isSignup); setError(''); }}
               className="text-sm font-bold text-blue-600 hover:text-indigo-700 transition-colors"
             >

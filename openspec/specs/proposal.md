@@ -36,16 +36,16 @@ Para o **MVP 2 (Gerenciamento de Disciplinas)**, o escopo de lógica de negócio
 
 As tarefas a seguir visam completar exclusivamente o escopo do MVP e prepará-lo para testes finais, evitando retrabalho no que já existe.
 
-### Milestone 1: Fluxo de Recuperação de Senha (Backend)
-- [ ] **Configuração de E-mail:** Integrar o ambiente Node.js com uma biblioteca simplificada de remessa de e-mail (ex: `nodemailer` mockado ou conectado a um serviço falso/real).
-- [ ] **Logica de Reset Token:** Criar campo virtual ou de tabela no Mongoose `User` para armazenar o token temporário de recuperação (`resetPasswordToken` e `resetPasswordExpire`).
-- [ ] **Endpoint de Solicitação:** Criar endpoint `POST /api/auth/forgotpassword` no `authController.js` para enviar o e-mail contendo o link.
-- [ ] **Endpoint de Redefinição:** Criar endpoint `POST /api/auth/resetpassword/:token` para alterar o hash do banco de dados.
+### Milestone 1: Fluxo de Recuperação de Senha via OTP 4 Dígitos (Backend) — ✅ Concluído
+- [x] **Configuração de E-mail:** Integrado ambiente Node.js com `nodemailer` com suporte completo a SMTP e fallback robusto via `console.log` para desenvolvimento local.
+- [x] **Lógica do Código OTP:** Adicionado campos `reset_code` e `reset_code_expires` no Mongoose `User` para códigos numéricos de 4 dígitos efêmeros (10 minutos).
+- [x] **Endpoint de Solicitação:** Criado endpoint `POST /api/auth/forgot-password` que gera o OTP, persiste no banco e dispara o e-mail de recuperação em template HTML altamente estilizado.
+- [x] **Endpoint de Verificação:** Criado endpoint `POST /api/auth/verify-code` para validação prévia do código de 4 dígitos.
+- [x] **Endpoint de Redefinição:** Criado endpoint `POST /api/auth/reset-password` que revalida o OTP e atualiza a senha no banco usando hash bcrypt.
 
-### Milestone 2: UI de Recuperação de Senha (Frontend)
-- [ ] **Atualização no Login:** Adicionar um botão discreto de "Esqueci minha senha" dentro da visualização de login atual no arquivo `LoginView.jsx`.
-- [ ] **Nova View de Solicitação:** Criar `ForgotPasswordView.jsx` com input de email e disparo para a API.
-- [ ] **Nova View de Redefinição:** Criar `ResetPasswordView.jsx` lendo o `:token` via React Router para inserir a senha nova.
+### Milestone 2: UI de Recuperação de Senha (Frontend) — ✅ Concluído
+- [x] **Atualização no Login:** Adicionado link discreto de "Esqueci minha senha" abaixo do campo de senha no formulário de login (`LoginView.jsx`).
+- [x] **Wizard de Recuperação:** Criado `ForgotPasswordView.jsx` em `/esqueci-senha` gerenciando todo o fluxo de 3 estados (E-mail -> Código OTP com timer de 10 min e inputs inteligentes -> Nova Senha com validação em tempo real).
 
 ### Milestone 3: Auditoria Final do MVP
 - [ ] **Teste End-to-End (Auth):** Simular todo o ciclo de vida do usuário: Criação -> Login -> Esqueceu Senha -> Cadastro de Disciplina -> Logout.

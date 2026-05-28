@@ -14,6 +14,15 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Campos de Controle da Recuperação de Senha (OTP 4 dígitos)
+  reset_code: {
+    type: String,
+    default: null,
+  },
+  reset_code_expires: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

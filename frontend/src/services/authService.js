@@ -43,6 +43,26 @@ const authService = {
   logout: () => {
     localStorage.removeItem('edutrack_token');
     localStorage.removeItem('edutrack_user');
+  },
+
+  forgotPassword: async (email) => {
+    const response = await authApi.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyCode: async (email, code) => {
+    const response = await authApi.post('/auth/verify-code', { email, code });
+    return response.data;
+  },
+
+  resetPassword: async (email, code, newPassword, confirmPassword) => {
+    const response = await authApi.post('/auth/reset-password', {
+      email,
+      code,
+      newPassword,
+      confirmPassword
+    });
+    return response.data;
   }
 };
 
