@@ -1,0 +1,79 @@
+{
+    "generated_at": "2026-05-27T21:52:39",
+    "user_id": "6a178faf49b0deb44041d4b5",
+    "subjects": [
+        {
+            "id": "6a178ffa49b0deb44041d4ef",
+            "nome": "sotfware",
+            "subject_name": "sotfware",
+            "progress_weighted": 0.0,
+            "total_weight": 8,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "6a17907c49b0deb44041d5b4",
+            "nome": "enge",
+            "subject_name": "enge",
+            "progress_weighted": 0,
+            "total_weight": 0,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "6a17913349b0deb44041d656",
+            "nome": "TESTE SQL ",
+            "subject_name": "TESTE SQL ",
+            "progress_weighted": 100.0,
+            "total_weight": 6,
+            "completed_weight": 6,
+            "time_real_min": 200,
+            "total_hours": 3.33,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 42.86,
+        "total_points": 14,
+        "completed_points": 6,
+        "velocity_points_per_min": 0.03,
+        "total_time_spent_min": 200,
+        "total_time_estimated_min": 0,
+        "forecasted_completion_date": "2026-05-28T02:19:19",
+        "global_deviation_percent": null
+    },
+    "deviations": [
+        {
+            "subject": "sotfware",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "enge",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "TESTE SQL ",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 3,
+        "subjects_with_time_data": 0,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 0,
+        "subjects_on_track": 0
+    }
+}
