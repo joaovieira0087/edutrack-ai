@@ -9,6 +9,7 @@ router.get('/', (req, res) => {
   if (req.query.subjects_id) return subjectController.getById(req, res);
   return subjectController.getAll(req, res);
 });
+router.get('/analytics', subjectController.getAnalytics);
 router.get('/:id', subjectController.getById);
 router.post('/', subjectController.create);
 

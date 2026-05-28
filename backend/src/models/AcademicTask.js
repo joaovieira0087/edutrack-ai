@@ -14,11 +14,11 @@ const AcademicTaskSchema = new mongoose.Schema({
     type: String,
   },
   data_prevista: {
-    type: String,
+    type: Date,
   },
   status: {
     type: String,
-    enum: ['pendente', 'em andamento', 'concluida'],
+    enum: ['pendente', 'em_andamento', 'concluida', 'atrasada', 'bloqueada'],
     default: 'pendente',
   },
   user_id: {
@@ -31,6 +31,20 @@ const AcademicTaskSchema = new mongoose.Schema({
     enum: [1, 2, 3, 4],
     default: 4,
   },
+  tempo_estimado: {
+    type: Number,
+    default: 0, // em minutos
+  },
+  tempo_real: {
+    type: Number,
+    default: 0, // em minutos
+  },
+  peso: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 10,
+  },
   tags: [{
     type: String,
   }],
@@ -39,6 +53,14 @@ const AcademicTaskSchema = new mongoose.Schema({
     file_url: String,
     file_type: String
   }],
+  blocked_by: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicTask',
+  }],
+  completed_at: {
+    type: Date,
+    default: null,
+  },
   history: [{
     action: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
@@ -51,5 +73,9 @@ const AcademicTaskSchema = new mongoose.Schema({
 }, {
   timestamps: true,
 });
+
+// Compound index for efficient status queries
+AcademicTaskSchema.index({ user_id: 1, status: 1, data_prevista: 1 });
+AcademicTaskSchema.index({ user_id: 1, is_deleted: 1 });
 
 module.exports = mongoose.model('AcademicTask', AcademicTaskSchema);

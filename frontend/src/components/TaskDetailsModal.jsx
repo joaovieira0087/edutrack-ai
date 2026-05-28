@@ -9,8 +9,12 @@ const priorityConfig = {
 
 const statusLabels = {
   pendente: { text: 'Pendente', bg: 'bg-amber-50', color: 'text-amber-700', border: 'border-amber-200' },
-  'em andamento': { text: 'Em Andamento', bg: 'bg-blue-50', color: 'text-blue-700', border: 'border-blue-200' },
+  em_andamento: { text: 'Em Andamento', bg: 'bg-blue-50', color: 'text-blue-700', border: 'border-blue-200' },
   concluida: { text: 'Concluída', bg: 'bg-emerald-50', color: 'text-emerald-700', border: 'border-emerald-200' },
+  atrasada: { text: 'Atrasada', bg: 'bg-red-50', color: 'text-red-700', border: 'border-red-200' },
+  bloqueada: { text: 'Bloqueada', bg: 'bg-gray-100', color: 'text-gray-600', border: 'border-gray-300' },
+  // Legacy support
+  'em andamento': { text: 'Em Andamento', bg: 'bg-blue-50', color: 'text-blue-700', border: 'border-blue-200' },
 };
 
 const actionIcons = {
@@ -18,6 +22,7 @@ const actionIcons = {
   'Edição': { color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200' },
   'Exclusão': { color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200' },
   'Recuperação': { color: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  'Auto-Status': { color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200' },
 };
 
 const formatTimestamp = (ts) => {
@@ -54,6 +59,7 @@ const TaskDetailsModal = ({ task, subject, onClose }) => {
   const pConfig = priorityConfig[p];
   const sConfig = statusLabels[task.status] || statusLabels.pendente;
   const history = Array.isArray(task.history) ? [...task.history].reverse() : [];
+  const peso = Number(task.peso) || 1;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -129,20 +135,60 @@ const TaskDetailsModal = ({ task, subject, onClose }) => {
               </div>
             </div>
 
+            {/* Peso */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Peso</span>
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                <span className="text-sm font-bold text-gray-700">{peso}x</span>
+                <div className="flex gap-0.5 ml-1">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className={`w-1.5 h-3 rounded-sm ${i < peso ? 'bg-indigo-400' : 'bg-gray-100'}`}></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Criado em */}
             <div className="space-y-1.5">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Criado em</span>
               <span className="text-sm font-bold text-gray-700 block">{formatTimestamp(task.createdAt)}</span>
             </div>
+
+            {/* Concluído em */}
+            {task.completed_at && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Concluído em</span>
+                <span className="text-sm font-bold text-emerald-600 block">{formatTimestamp(task.completed_at)}</span>
+              </div>
+            )}
           </div>
 
-          {/* Descrição e Anexos/Tags */}
+          {/* Descrição, Dependências, Tags, Anexos */}
           <div className="px-8 pb-6 space-y-8">
             {task.descricao && (
               <div>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Descrição</span>
                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{task.descricao}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Dependências (blocked_by) */}
+            {task.blocked_by && task.blocked_by.length > 0 && (
+              <div>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Dependências</span>
+                <div className="flex flex-wrap gap-2">
+                  {task.blocked_by.map((dep, idx) => {
+                    const title = typeof dep === 'object' && dep.titulo ? dep.titulo : String(dep).slice(-6);
+                    return (
+                    <span key={idx} className="inline-flex items-center text-xs font-bold text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200">
+                      <svg className="w-3 h-3 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                      {title}
+                    </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -227,6 +273,9 @@ const TaskDetailsModal = ({ task, subject, onClose }) => {
                           )}
                           {entry.action === 'Recuperação' && (
                             <svg className={`w-3.5 h-3.5 ${actionStyle.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                          )}
+                          {entry.action === 'Auto-Status' && (
+                            <svg className={`w-3.5 h-3.5 ${actionStyle.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                           )}
                         </div>
 

@@ -9,6 +9,10 @@ const subjectService = {
     const response = await crudApi.get(`/subjects/${id}`);
     return response.data;
   },
+  getAnalytics: async () => {
+    const response = await crudApi.get('/subjects/analytics');
+    return response.data;
+  },
   create: async (data) => {
     const payload = {
       nome: data.nome,

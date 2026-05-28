@@ -1,0 +1,61 @@
+{
+    "generated_at": "2026-05-06T18:56:10",
+    "user_id": "69fbb5b28b49c19be08fb7f5",
+    "subjects": [
+        {
+            "id": "69fbb5f98b49c19be08fb809",
+            "nome": "Engenharia de Software",
+            "subject_name": "Engenharia de Software",
+            "progress_weighted": 100.0,
+            "total_weight": 7,
+            "completed_weight": 7,
+            "time_real_min": 78,
+            "total_hours": 1.3,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69fbb61a8b49c19be08fb80d",
+            "nome": "programação e algoritimo",
+            "subject_name": "programação e algoritimo",
+            "progress_weighted": 100.0,
+            "total_weight": 16,
+            "completed_weight": 16,
+            "time_real_min": 1060,
+            "total_hours": 17.67,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 100.0,
+        "total_points": 23,
+        "completed_points": 23,
+        "velocity_points_per_min": 0.0202,
+        "total_time_spent_min": 1138,
+        "total_time_estimated_min": 0,
+        "forecasted_completion_date": "2026-05-06T18:56:10",
+        "global_deviation_percent": null
+    },
+    "deviations": [
+        {
+            "subject": "Engenharia de Software",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "programação e algoritimo",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 2,
+        "subjects_with_time_data": 0,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 0,
+        "subjects_on_track": 0
+    }
+}

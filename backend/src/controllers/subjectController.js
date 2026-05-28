@@ -1,4 +1,6 @@
 const Subject = require('../models/Subject');
+const AcademicTask = require('../models/AcademicTask');
+const statusEngine = require('../services/statusEngine');
 
 const subjectController = {
   // GET /subjects or /get_subjects
@@ -49,7 +51,75 @@ const subjectController = {
     } catch (error) {
       res.status(500).json({ message: 'Erro ao criar disciplina', error: error.message });
     }
-  }
+  },
+
+  // GET /subjects/analytics
+  getAnalytics: async (req, res) => {
+    try {
+      const subjects = await Subject.find({ user_id: req.user.id }).sort({ createdAt: -1 });
+      const allTasks = await AcademicTask.find({ user_id: req.user.id, is_deleted: false })
+        .populate('blocked_by', 'titulo status');
+
+      // Computar status efetivo para todas as tarefas
+      const plainTasks = allTasks.map(t => t.toObject());
+      const tasksWithEffectiveStatus = plainTasks.map(t => ({
+        ...t,
+        status: statusEngine.computeEffectiveStatus(t, plainTasks),
+      }));
+
+      const analytics = subjects.map(subject => {
+        const obj = subject.toObject();
+        obj.id = obj._id;
+
+        // Filtrar tarefas desta disciplina
+        const subjectTasks = tasksWithEffectiveStatus.filter(
+          t => String(t.subject_id) === String(obj._id)
+        );
+
+        // Progresso ponderado
+        const progress = statusEngine.computeWeightedProgress(subjectTasks);
+
+        // Distribuição de status
+        const statusDistribution = {
+          pendente: 0,
+          em_andamento: 0,
+          concluida: 0,
+          atrasada: 0,
+          bloqueada: 0,
+        };
+        
+        let tempoEstimadoTotal = 0;
+        let tempoRealTotal = 0;
+
+        subjectTasks.forEach(t => {
+          if (statusDistribution[t.status] !== undefined) {
+            statusDistribution[t.status]++;
+          }
+          tempoEstimadoTotal += (t.tempo_estimado || 0);
+          tempoRealTotal += (t.tempo_real || 0);
+        });
+
+        return {
+          ...obj,
+          taskCount: subjectTasks.length,
+          progress,
+          statusDistribution,
+          tempo_estimado: tempoEstimadoTotal,
+          tempo_real: tempoRealTotal,
+        };
+      });
+
+      // Global analytics
+      const globalProgress = statusEngine.computeWeightedProgress(tasksWithEffectiveStatus);
+
+      res.json({
+        subjects: analytics,
+        global: globalProgress,
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Erro ao calcular analytics', error: error.message });
+    }
+  },
 };
 
 module.exports = subjectController;

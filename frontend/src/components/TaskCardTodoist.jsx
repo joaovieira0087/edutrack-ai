@@ -3,16 +3,14 @@ import React from 'react';
 // Helper for date parsing and overdue check
 const isOverdue = (dateString, status) => {
   if (status === 'concluida') return false;
+  if (status === 'atrasada') return true; // Backend already determined
   if (!dateString) return false;
   
   // Create a proper date from string. Expects YYYY-MM-DD or valid parseable Date.
-  const taskDate = new Date(dateString);
+  const taskDate = new Date(dateString + 'T23:59:59');
   if (isNaN(taskDate.getTime())) return false;
   
-  // Set time to end of task day to compare against current time.
-  taskDate.setHours(23, 59, 59, 999);
   const now = new Date();
-  
   return taskDate < now;
 };
 
@@ -34,13 +32,16 @@ const formatDate = (dateString) => {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(dateObj);
 };
 
+const statusConfig = {
+  pendente: { label: 'A Iniciar', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: null },
+  em_andamento: { label: 'Fazendo', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: null },
+  concluida: { label: 'Feito', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: null },
+  atrasada: { label: 'Atrasada', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: '⚠' },
+  bloqueada: { label: 'Bloqueada', color: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-300', icon: '🔒' },
+};
+
 const getStatusLabelText = (status) => {
-  switch(status) {
-    case 'pendente': return 'A Iniciar';
-    case 'em andamento': return 'Fazendo';
-    case 'concluida': return 'Feito';
-    default: return 'A Iniciar';
-  }
+  return statusConfig[status]?.label || statusConfig.pendente.label;
 };
 
 const getTagIcon = (tagStr) => {
@@ -54,25 +55,42 @@ const getTagIcon = (tagStr) => {
 const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onViewDetails }) => {
   const overdue = isOverdue(task.data_prevista, task.status);
   const formattedDate = formatDate(task.data_prevista);
-  const colors = { dueDate: overdue ? 'border-red-100 text-red-600 bg-red-50' : task.status === 'concluida' ? 'border-gray-100 text-gray-400 bg-gray-50' : 'border-emerald-100 text-emerald-600 bg-emerald-50' };
+  const sConfig = statusConfig[task.status] || statusConfig.pendente;
+  const isBlocked = task.status === 'bloqueada';
+  const isDone = task.status === 'concluida';
+  const peso = Number(task.peso) || 1;
+
+  const colors = { 
+    dueDate: overdue || task.status === 'atrasada'
+      ? 'border-red-100 text-red-600 bg-red-50' 
+      : isDone 
+        ? 'border-gray-100 text-gray-400 bg-gray-50' 
+        : 'border-emerald-100 text-emerald-600 bg-emerald-50' 
+  };
 
   return (
     <div 
       onClick={() => onViewDetails && onViewDetails(task)}
-      className={`flex flex-col sm:flex-row items-start gap-4 py-4 px-4 bg-white border border-gray-100/50 hover:bg-white hover:shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:border-gray-200 transition-all group cursor-pointer rounded-2xl relative ${task.status === 'concluida' ? 'opacity-60' : ''}`}>
+      className={`flex flex-col sm:flex-row items-start gap-4 py-4 px-4 bg-white border border-gray-100/50 hover:bg-white hover:shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:border-gray-200 transition-all group cursor-pointer rounded-2xl relative ${isDone ? 'opacity-60' : ''} ${isBlocked ? 'opacity-70 border-dashed' : ''}`}>
       {/* Primary Action & Priority Section */}
       <div className="flex items-start gap-3 w-full sm:w-auto">
         <div className="pt-0.5 relative z-10 shrink-0">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onToggleStatus(task); }}
-            className={`w-5 h-5 rounded-full border-[1.5px] border-gray-300 flex items-center justify-center transition-all duration-300 group-hover:border-gray-500 hover:bg-gray-100 ${
-              task.status === 'concluida' 
-                ? 'bg-emerald-500 border-emerald-500 text-white' 
-                : 'bg-transparent text-transparent hover:text-gray-400 pb-[1px]'
-            }`}
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
-          </button>
+          {isBlocked ? (
+            <div className="w-5 h-5 rounded-full border-[1.5px] border-gray-300 flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed" title="Tarefa bloqueada por dependência">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+          ) : (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onToggleStatus(task); }}
+              className={`w-5 h-5 rounded-full border-[1.5px] border-gray-300 flex items-center justify-center transition-all duration-300 group-hover:border-gray-500 hover:bg-gray-100 ${
+                isDone 
+                  ? 'bg-emerald-500 border-emerald-500 text-white' 
+                  : 'bg-transparent text-transparent hover:text-gray-400 pb-[1px]'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </button>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
@@ -101,15 +119,36 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
                 );
               })()}
             </div>
-            <h4 className={`text-sm font-bold truncate ${task.status === 'concluida' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+            <h4 className={`text-sm font-bold truncate ${isDone ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
               {task.titulo}
             </h4>
+            {/* Status badge for atrasada/bloqueada */}
+            {(task.status === 'atrasada' || task.status === 'bloqueada') && (
+              <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${sConfig.bg} ${sConfig.color} ${sConfig.border}`}>
+                {sConfig.icon && <span className="mr-0.5 text-[8px]">{sConfig.icon}</span>}
+                {sConfig.label}
+              </span>
+            )}
           </div>
 
           {task.descricao && (
-            <p className={`text-[11px] leading-relaxed line-clamp-2 mb-2 ${task.status === 'concluida' ? 'text-gray-300' : 'text-gray-500'}`}>
+            <p className={`text-[11px] leading-relaxed line-clamp-2 mb-2 ${isDone ? 'text-gray-300' : 'text-gray-500'}`}>
               {task.descricao}
             </p>
+          )}
+
+          {task.blocked_by && task.blocked_by.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {task.blocked_by.map((dep, idx) => {
+                const title = typeof dep === 'object' && dep.titulo ? dep.titulo : String(dep).slice(-6);
+                return (
+                  <span key={idx} className="inline-flex items-center text-[9px] font-bold text-red-600 bg-red-50/80 px-1.5 py-0.5 rounded-md border border-red-100" title="Dependência">
+                    <svg className="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    {title}
+                  </span>
+                );
+              })}
+            </div>
           )}
 
           {/* Metadata Row */}
@@ -122,6 +161,14 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
                 </span>
               )}
               
+              {/* Peso indicator */}
+              {peso > 1 && (
+                <span className="inline-flex items-center text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100" title={`Peso: ${peso}`}>
+                  <svg className="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                  {peso}x
+                </span>
+              )}
+
               {task.attachments && task.attachments.length > 0 && (
                 <span className="inline-flex items-center text-[10px] text-gray-400 opacity-80" title={`${task.attachments.length} anexo(s)`}>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>

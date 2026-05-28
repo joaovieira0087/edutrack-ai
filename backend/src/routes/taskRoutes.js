@@ -12,6 +12,7 @@ router.get('/', (req, res) => {
 router.get('/trash', taskController.getTrash);
 router.get('/:id', taskController.getById);
 router.post('/', taskController.create);
+router.post('/sync-statuses', taskController.syncStatuses);
 router.put('/:id', taskController.update);
 router.patch('/:id', taskController.update);
 

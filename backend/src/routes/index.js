@@ -3,6 +3,7 @@ const authRoutes = require('./authRoutes');
 const subjectRoutes = require('./subjectRoutes');
 const taskRoutes = require('./taskRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const analyticsRoutes = require('./analyticsRoutes');
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.use('/auth', authRoutes);
 router.use('/subjects', subjectRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/analytics', analyticsRoutes);
 
 // Retrocompatibilidade rotas antigas
 router.use('/post_subjects', subjectRoutes);

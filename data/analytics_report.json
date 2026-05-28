@@ -1,0 +1,186 @@
+{
+    "generated_at": "2026-05-06T18:07:18",
+    "subjects": [
+        {
+            "id": "69cf4129b55306f341d1d042",
+            "nome": "Database desing ",
+            "subject_name": "Database desing ",
+            "progress_weighted": 0.0,
+            "total_weight": 6,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69cf46a2d8af56f939caf481",
+            "nome": "Engenharia de software",
+            "subject_name": "Engenharia de software",
+            "progress_weighted": 0.0,
+            "total_weight": 32,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69d6bb0751fe37de0a1f7d82",
+            "nome": "faculdade",
+            "subject_name": "faculdade",
+            "progress_weighted": 100.0,
+            "total_weight": 1,
+            "completed_weight": 1,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69d6bcef51fe37de0a1f7dc8",
+            "nome": "testee",
+            "subject_name": "testee",
+            "progress_weighted": 100.0,
+            "total_weight": 2,
+            "completed_weight": 2,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69ddb8d6f314169d103cc01c",
+            "nome": "engenharia de sotfware",
+            "subject_name": "engenharia de sotfware",
+            "progress_weighted": 100.0,
+            "total_weight": 16,
+            "completed_weight": 16,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69e037594e222b92914325f2",
+            "nome": "testee",
+            "subject_name": "testee",
+            "progress_weighted": 0,
+            "total_weight": 0,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69e039b24e222b92914327b4",
+            "nome": "software",
+            "subject_name": "software",
+            "progress_weighted": 0.0,
+            "total_weight": 4,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69e14a8acfcc2e71ed2434b5",
+            "nome": "TESTE",
+            "subject_name": "TESTE",
+            "progress_weighted": 0,
+            "total_weight": 0,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69f2a6cd422c113d53c87f72",
+            "nome": "IA",
+            "subject_name": "IA",
+            "progress_weighted": 100.0,
+            "total_weight": 20,
+            "completed_weight": 20,
+            "time_real_min": 180,
+            "total_hours": 3.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 48.15,
+        "total_points": 81,
+        "completed_points": 39,
+        "velocity_points_per_min": 0.2167,
+        "total_time_spent_min": 180,
+        "total_time_estimated_min": 0,
+        "forecasted_completion_date": "2026-05-06T21:21:09",
+        "global_deviation_percent": null
+    },
+    "deviations": [
+        {
+            "subject": "Database desing ",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "Engenharia de software",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "faculdade",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "testee",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "engenharia de sotfware",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "testee",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "software",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "TESTE",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "IA",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 9,
+        "subjects_with_time_data": 0,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 0,
+        "subjects_on_track": 0
+    }
+}

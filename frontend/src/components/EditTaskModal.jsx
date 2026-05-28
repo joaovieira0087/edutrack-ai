@@ -2,17 +2,21 @@ import React, { useState, useEffect } from 'react';
 import taskService from '../services/taskService';
 import { useToast } from '../context/ToastContext';
 
-const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
+const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
   const { addToast } = useToast();
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
     subject_id: '',
     data_prevista: '',
     priority: 4,
+    peso: 1,
     descricao: '',
     status: 'pendente',
+    tempo_real: '',
     tags: '',
-    attachments: []
+    attachments: [],
+    blocked_by: []
   });
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,13 +30,21 @@ const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
         subject_id: task.subject_id || '',
         data_prevista: task.data_prevista || '',
         priority: task.priority || 4,
+        peso: task.peso || 1,
         descricao: task.descricao || '',
         status: task.status || 'pendente',
+        tempo_real: task.tempo_real || '',
         tags: task.tags ? task.tags.join(', ') : '',
-        attachments: task.attachments || []
+        attachments: task.attachments || [],
+        blocked_by: task.blocked_by || []
       });
     }
   }, [task]);
+
+  const handleDependenciesChange = (e) => {
+    const value = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData(prev => ({ ...prev, blocked_by: value }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -64,6 +76,10 @@ const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
       setError('Selecione uma disciplina.');
       return;
     }
+    if (formData.status === 'concluida' && (!formData.tempo_real || Number(formData.tempo_real) <= 0)) {
+      setError('Por favor, informe o tempo real gasto (em minutos) para poder concluir esta tarefa.');
+      return;
+    }
 
     setIsSubmitting(true);
     setError('');
@@ -71,10 +87,19 @@ const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
     try {
       const finalData = { 
         ...formData, 
+        tempo_real: formData.tempo_real ? Number(formData.tempo_real) : 0,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [] 
       };
       await taskService.update(task.id, finalData);
-      onSave(); // Callback to refresh data and close modal
+      
+      if (finalData.status === 'concluida' && task.status !== 'concluida') {
+        setShowSuccessAnimation(true);
+        setTimeout(() => {
+          onSave();
+        }, 1500);
+      } else {
+        onSave();
+      }
     } catch (err) {
       console.error('Erro ao atualizar tarefa:', err);
       setError(err.response?.data?.message || 'Erro ao atualizar tarefa. Tente novamente.');
@@ -123,8 +148,43 @@ const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
 
   const inputClass = "w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent block px-4 py-3 placeholder-gray-400 transition-all font-medium";
 
+  const originalStatus = task.status;
+  const getValidStatusOptions = () => {
+    if (originalStatus === 'bloqueada') {
+      // Bloqueada só muda quando deps resolvem
+      return [{ value: 'bloqueada', label: 'Bloqueada (Gerenciado pelo sistema)' }];
+    }
+    const options = [
+      { value: 'pendente', label: 'Pendente' },
+      { value: 'em_andamento', label: 'Em Andamento' },
+      { value: 'concluida', label: 'Concluída' },
+      { value: 'atrasada', label: 'Atrasada' },
+    ];
+    if (originalStatus === 'concluida') {
+      return options.filter(o => ['concluida', 'pendente'].includes(o.value));
+    }
+    return options;
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      {/* Success Animation Overlay */}
+      {showSuccessAnimation && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm animate-in fade-in duration-300 rounded-[2.5rem]">
+          <div className="text-center animate-in zoom-in-50 duration-500">
+            <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 custom-bounce">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h3 className="text-2xl font-black text-gray-800">Tarefa Concluída!</h3>
+            <p className="text-gray-500 font-medium mt-1">Bom trabalho.</p>
+            <style>{`
+              .custom-bounce { animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) both; }
+              @keyframes bounce-in { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+            `}</style>
+          </div>
+        </div>
+      )}
+
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300"
@@ -255,12 +315,70 @@ const EditTaskModal = ({ task, subjects, onClose, onSave }) => {
                 value={formData.status} 
                 onChange={handleChange} 
                 className={`${inputClass} appearance-none cursor-pointer`}
+                disabled={originalStatus === 'bloqueada'}
               >
-                <option value="pendente">Pendente</option>
-                <option value="em andamento">Em Andamento</option>
-                <option value="concluida">Concluída</option>
+                {getValidStatusOptions().map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
+            
+            <div className="space-y-2">
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Tempo Real (minutos)</label>
+              <input 
+                type="number" 
+                name="tempo_real" 
+                value={formData.tempo_real} 
+                onChange={handleChange} 
+                className={inputClass}
+                placeholder="Ex: 60"
+                min="0"
+                required={formData.status === 'concluida'}
+              />
+              {formData.status === 'concluida' && (
+                <p className="text-[10px] text-orange-500 font-bold ml-1 animate-pulse">Obrigatório para concluir.</p>
+              )}
+            </div>
+          </div>
+
+          {formData.subject_id && (
+            <div className="space-y-2">
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Dependências (Bloqueada por)</label>
+              <select 
+                multiple
+                name="blocked_by" 
+                value={formData.blocked_by} 
+                onChange={handleDependenciesChange} 
+                className={inputClass + " custom-scrollbar min-h-[100px]"}
+              >
+                {allTasks
+                  .filter(t => t.subject_id === formData.subject_id && t.id !== task.id && t.status !== 'concluida')
+                  .map(t => (
+                    <option key={t.id} value={t.id} className="p-2 border-b border-gray-100 last:border-0 hover:bg-gray-100 rounded">
+                      {t.titulo} ({t.status.replace('_', ' ')})
+                    </option>
+                  ))
+                }
+              </select>
+              <p className="text-[10px] text-gray-400 font-medium ml-1">Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplas. Tarefas concluídas não aparecem aqui.</p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Peso da Tarefa ({formData.peso}x)</label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                name="peso"
+                min="1"
+                max="10"
+                value={formData.peso}
+                onChange={handleChange}
+                className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-600"
+              />
+              <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 min-w-[48px] text-center">{formData.peso}x</span>
+            </div>
+            <p className="text-[10px] text-gray-400 font-medium ml-1">Tarefas com peso maior impactam mais o progresso da disciplina.</p>
           </div>
 
           <div className="space-y-2">

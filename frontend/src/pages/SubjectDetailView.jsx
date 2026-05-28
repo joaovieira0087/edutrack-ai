@@ -3,31 +3,53 @@ import { useParams, useNavigate } from 'react-router-dom';
 import subjectService from '../services/subjectService';
 import taskService from '../services/taskService';
 
+const statusConfig = {
+  pendente: { label: 'Pendente', bg: 'bg-amber-50', color: 'text-amber-600', border: 'border-amber-200' },
+  em_andamento: { label: 'Em Andamento', bg: 'bg-blue-50', color: 'text-blue-600', border: 'border-blue-200' },
+  concluida: { label: 'Concluída', bg: 'bg-emerald-50', color: 'text-emerald-600', border: 'border-emerald-200' },
+  atrasada: { label: 'Atrasada', bg: 'bg-red-50', color: 'text-red-600', border: 'border-red-200' },
+  bloqueada: { label: 'Bloqueada', bg: 'bg-gray-100', color: 'text-gray-500', border: 'border-gray-300' },
+  // Legacy
+  'em andamento': { label: 'Em Andamento', bg: 'bg-amber-50', color: 'text-amber-600', border: 'border-amber-200' },
+};
+
 const SubjectDetailView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const subjectId = parseInt(id, 10);
   const [subject, setSubject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [subjectData, allTasks] = await Promise.all([
-          subjectService.getById(subjectId),
-          taskService.getAll()
+        const [subjectData, allTasks, analyticsData] = await Promise.all([
+          subjectService.getById(id),
+          taskService.getAll(),
+          subjectService.getAnalytics().catch(() => null),
         ]);
         setSubject(subjectData);
-        setTasks(allTasks.filter(t => t.subject_id === subjectId));
+        setTasks(allTasks.filter(t => String(t.subject_id) === String(id)));
+        if (analyticsData) setAnalytics(analyticsData);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };
     fetchData();
-  }, [subjectId]);
+  }, [id]);
+
+  // Get analytics for this subject
+  const subjectAnalytics = useMemo(() => {
+    if (!analytics || !subject) return null;
+    return analytics.subjects?.find(s => String(s._id) === String(subject._id || subject.id));
+  }, [analytics, subject]);
 
   const completedTasks = tasks.filter(t => t.status === 'concluida').length;
-  const progress = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100);
+  // Use weighted progress from analytics if available
+  const progress = subjectAnalytics?.progress?.progress ?? (tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100));
+
+  // Status distribution
+  const statusDist = subjectAnalytics?.statusDistribution || {};
 
   if (loading) return <div className="flex items-center justify-center py-32"><div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>;
   if (!subject) return <div className="text-center py-20"><h2 className="text-2xl font-bold text-gray-700">Disciplina não encontrada.</h2><button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-blue-100 text-blue-700 rounded-xl font-medium">Voltar</button></div>;
@@ -64,9 +86,34 @@ const SubjectDetailView = () => {
             </div>
           </div>
           <div className="w-full lg:w-72 bg-gradient-to-br from-gray-50 to-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Progresso</h3>
-            <div className="flex items-end justify-between font-bold mb-2"><span className="text-3xl text-blue-600">{progress}%</span><span className="text-sm text-gray-400 mb-1">{completedTasks}/{tasks.length}</span></div>
+            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Progresso Ponderado</h3>
+            <div className="flex items-end justify-between font-bold mb-2">
+              <span className="text-3xl text-blue-600">{progress}%</span>
+              <span className="text-sm text-gray-400 mb-1">
+                {subjectAnalytics?.progress ? `${subjectAnalytics.progress.weightedCompleted}/${subjectAnalytics.progress.weightedTotal} pts` : `${completedTasks}/${tasks.length}`}
+              </span>
+            </div>
             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner"><div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div></div>
+
+            {/* Status Distribution */}
+            {Object.keys(statusDist).length > 0 && (
+              <div className="mt-5 space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Distribuição</h4>
+                {Object.entries(statusDist).filter(([, count]) => count > 0).map(([status, count]) => {
+                  const cfg = statusConfig[status] || statusConfig.pendente;
+                  const pct = tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0;
+                  return (
+                    <div key={status} className="flex items-center gap-2">
+                      <span className={`text-[9px] font-black uppercase w-20 truncate ${cfg.color}`}>{cfg.label}</span>
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${cfg.bg} border ${cfg.border}`} style={{ width: `${pct}%` }}></div>
+                      </div>
+                      <span className="text-[9px] font-black text-gray-400 w-6 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -79,15 +126,23 @@ const SubjectDetailView = () => {
         {tasks.length > 0 ? (
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-left border-collapse">
-              <thead><tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-widest text-gray-400 font-bold"><th className="px-6 py-4">Título</th><th className="px-6 py-4">Data</th><th className="px-6 py-4">Status</th></tr></thead>
+              <thead><tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-widest text-gray-400 font-bold"><th className="px-6 py-4">Título</th><th className="px-6 py-4">Data</th><th className="px-6 py-4">Peso</th><th className="px-6 py-4">Status</th></tr></thead>
               <tbody className="divide-y divide-gray-50 text-sm font-medium">
-                {tasks.map(task => (
-                  <tr key={task.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-6 py-5"><div className="text-gray-900 font-bold">{task.titulo}</div><div className="text-gray-500 font-normal mt-1">{task.descricao}</div></td>
-                    <td className="px-6 py-5 text-gray-500">{task.data_prevista}</td>
-                    <td className="px-6 py-5"><span className={`px-4 py-1.5 rounded-full text-xs font-bold border ${task.status === 'concluida' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : task.status === 'em andamento' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{task.status === 'concluida' ? 'Concluída' : task.status === 'em andamento' ? 'Em Andamento' : 'Pendente'}</span></td>
-                  </tr>
-                ))}
+                {tasks.map(task => {
+                  const cfg = statusConfig[task.status] || statusConfig.pendente;
+                  return (
+                    <tr key={task.id} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="px-6 py-5"><div className="text-gray-900 font-bold">{task.titulo}</div><div className="text-gray-500 font-normal mt-1">{task.descricao}</div></td>
+                      <td className="px-6 py-5 text-gray-500">{task.data_prevista}</td>
+                      <td className="px-6 py-5">
+                        <span className="inline-flex items-center text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                          {Number(task.peso) || 1}x
+                        </span>
+                      </td>
+                      <td className="px-6 py-5"><span className={`px-4 py-1.5 rounded-full text-xs font-bold border ${cfg.bg} ${cfg.color} ${cfg.border}`}>{cfg.label}</span></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

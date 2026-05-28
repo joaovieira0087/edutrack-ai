@@ -58,27 +58,27 @@ const CalendarGrid = ({ tasks, subjects, onToggleStatus, onEdit, onDelete, onVie
   return (
     <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Calendar Header */}
-      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-white">
+      <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-white dark:from-gray-800/50 dark:to-gray-900/50">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center border border-blue-100 shadow-inner">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
           </div>
           <div>
-            <h2 className="text-2xl font-black text-gray-800 tracking-tight">
+            <h2 className="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tight">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
-            <p className="text-sm font-medium text-gray-400">Suas atividades distribuídas no mês.</p>
+            <p className="text-sm font-medium text-gray-400 dark:text-gray-500">Suas atividades distribuídas no mês.</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 transition-colors border border-transparent hover:border-gray-200">
+          <button onClick={prevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-sm font-bold text-gray-700 rounded-xl border border-gray-200 transition-colors">
+          <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors">
             Hoje
           </button>
-          <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 transition-colors border border-transparent hover:border-gray-200">
+          <button onClick={nextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
@@ -93,10 +93,10 @@ const CalendarGrid = ({ tasks, subjects, onToggleStatus, onEdit, onDelete, onVie
         ))}
       </div>
 
-      <div className="grid grid-cols-7 auto-rows-fr bg-gray-50">
+      <div className="grid grid-cols-7 auto-rows-fr bg-gray-50 dark:bg-gray-900">
         {daysArray.map((dayObj, i) => {
           if (!dayObj) {
-            return <div key={`empty-${i}`} className="min-h-[120px] bg-gray-50/50 border-r border-b border-gray-100/50"></div>;
+            return <div key={`empty-${i}`} className="min-h-[120px] bg-gray-50/50 dark:bg-gray-900/50 border-r border-b border-gray-100/50 dark:border-gray-800/50"></div>;
           }
 
           const isToday = dayObj.dateKey === new Date().toISOString().split('T')[0];
@@ -106,14 +106,14 @@ const CalendarGrid = ({ tasks, subjects, onToggleStatus, onEdit, onDelete, onVie
             <div 
               key={dayObj.dateKey} 
               onClick={() => hasTasks && setSelectedDayTasks(dayObj)}
-              className={`min-h-[120px] p-2 bg-white border-r border-b border-gray-100 relative group transition-colors ${hasTasks ? 'cursor-pointer hover:bg-blue-50/30' : ''}`}
+              className={`min-h-[120px] p-2 bg-white dark:bg-gray-800 border-r border-b border-gray-100 dark:border-gray-800 relative group transition-colors ${hasTasks ? 'cursor-pointer hover:bg-blue-50/30 dark:hover:bg-blue-900/20' : ''}`}
             >
               <div className="flex justify-between items-start mb-2">
                 <span className={`w-7 h-7 flex items-center justify-center text-sm font-bold rounded-full ${isToday ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-gray-500 group-hover:text-gray-900'}`}>
                   {dayObj.day}
                 </span>
                 {hasTasks && (
-                  <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                  <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-600">
                     {dayObj.tasks.length}
                   </span>
                 )}
@@ -122,10 +122,10 @@ const CalendarGrid = ({ tasks, subjects, onToggleStatus, onEdit, onDelete, onVie
               <div className="space-y-1">
                 {dayObj.tasks.slice(0, 3).map(task => {
                   const pColor = {
-                    1: 'bg-red-100/80 text-red-600 border-red-200',
-                    2: 'bg-orange-100/80 text-orange-600 border-orange-200',
-                    3: 'bg-blue-100/80 text-blue-600 border-blue-200',
-                    4: 'bg-gray-100/80 text-gray-600 border-gray-200'
+                    1: 'bg-red-100/80 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/50',
+                    2: 'bg-orange-100/80 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50',
+                    3: 'bg-blue-100/80 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/50',
+                    4: 'bg-gray-100/80 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600/50'
                   }[Number(task.priority) || 4];
 
                   return (
@@ -153,16 +153,16 @@ const CalendarGrid = ({ tasks, subjects, onToggleStatus, onEdit, onDelete, onVie
       {selectedDayTasks && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedDayTasks(null)}></div>
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 fade-in">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
-              <h3 className="text-xl font-black text-gray-800">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden animate-in zoom-in-95 fade-in">
+            <div className="px-6 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900">
+              <h3 className="text-xl font-black text-gray-800 dark:text-gray-100">
                 Tarefas para {selectedDayTasks.dateKey.split('-').reverse().join('/')}
               </h3>
               <button onClick={() => setSelectedDayTasks(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto bg-gray-50/50">
+            <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto bg-gray-50/50 dark:bg-gray-900/50">
               {selectedDayTasks.tasks.map(task => (
                 <TaskCardTodoist 
                   key={task.id}

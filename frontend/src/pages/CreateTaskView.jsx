@@ -9,12 +9,19 @@ const CreateTaskView = () => {
   const [error, setError] = useState('');
   const [subjects, setSubjects] = useState([]);
   const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
-  const [formData, setFormData] = useState({ titulo: '', subject_id: '', data_prevista: '', status: 'pendente', descricao: '', priority: 4, tags: '', attachments: [] });
+  const [formData, setFormData] = useState({ titulo: '', subject_id: '', data_prevista: '', status: 'pendente', descricao: '', priority: 4, peso: 1, tags: '', attachments: [], blocked_by: [], tempo_estimado: 0, tempo_real: 0 });
   const [isUploading, setIsUploading] = useState(false);
+  const [allTasks, setAllTasks] = useState([]);
 
   useEffect(() => {
     subjectService.getAll().then(setSubjects).catch(console.error);
+    taskService.getAll().then(setAllTasks).catch(console.error);
   }, []);
+
+  const handleDependenciesChange = (e) => {
+    const value = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData(prev => ({ ...prev, blocked_by: value }));
+  };
 
   const handleChange = (e) => { setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); setError(''); };
 
@@ -66,7 +73,7 @@ const CreateTaskView = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Título <span className="text-red-500">*</span></label><input type="text" name="titulo" required value={formData.titulo} onChange={handleChange} className={inputClass} placeholder="Ex: Projeto Final" /></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700">Disciplina <span className="text-red-500">*</span></label>
               <select name="subject_id" required value={formData.subject_id} onChange={handleChange} className={inputClass + " appearance-none cursor-pointer"}>
@@ -75,15 +82,34 @@ const CreateTaskView = () => {
               </select>
             </div>
             <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Deadline <span className="text-red-500">*</span></label><input type="date" name="data_prevista" required value={formData.data_prevista} onChange={handleChange} className={inputClass} /></div>
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700">Status <span className="text-red-500">*</span></label>
-              <select name="status" required value={formData.status} onChange={handleChange} className={inputClass + " appearance-none cursor-pointer"}>
-                <option value="pendente">Pendente</option>
-                <option value="em andamento">Em Andamento</option>
-                <option value="concluida">Concluída</option>
-              </select>
-            </div>
           </div>
+
+          {formData.subject_id && (
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700">Dependências (Bloqueada por)</label>
+              <select 
+                multiple
+                name="blocked_by" 
+                value={formData.blocked_by} 
+                onChange={handleDependenciesChange} 
+                className={inputClass + " custom-scrollbar min-h-[100px]"}
+              >
+                {allTasks
+                  .filter(t => t.subject_id === formData.subject_id && t.status !== 'concluida')
+                  .map(t => (
+                    <option key={t.id} value={t.id} className="p-2 border-b border-gray-100 last:border-0 hover:bg-gray-100 rounded">
+                      {t.titulo} ({t.status.replace('_', ' ')})
+                    </option>
+                  ))
+                }
+              </select>
+              <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3 flex gap-3 mt-2">
+                <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <p className="text-xs text-blue-700/80 leading-relaxed font-medium">Dependências são pré-requisitos. Sua tarefa ficará 'Bloqueada' até que as tarefas pai selecionadas sejam concluídas. Tarefas já finalizadas não aparecem nesta lista.</p>
+              </div>
+              <p className="text-[10px] text-gray-400 font-medium mt-2">Dica: Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplas.</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="block text-sm font-bold text-gray-700">Prioridade</label>
@@ -135,6 +161,51 @@ const CreateTaskView = () => {
           </div>
 
           <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Descrição <span className="text-red-500">*</span></label><textarea name="descricao" rows="4" required value={formData.descricao} onChange={handleChange} className={inputClass + " resize-none"} placeholder="Detalhes da atividade..."></textarea></div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-gray-700">Peso da Tarefa ({formData.peso}x)</label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                name="peso"
+                min="1"
+                max="10"
+                value={formData.peso}
+                onChange={handleChange}
+                className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-600"
+              />
+              <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 min-w-[48px] text-center">{formData.peso}x</span>
+            </div>
+            <p className="text-[10px] text-gray-400 font-medium">Tarefas com peso maior impactam mais o progresso da disciplina.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700">Tempo Estimado (minutos)</label>
+              <input 
+                type="number" 
+                name="tempo_estimado" 
+                min="0"
+                value={formData.tempo_estimado} 
+                onChange={handleChange} 
+                className={inputClass} 
+                placeholder="Ex: 60" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700">Tempo Real Gasto (minutos)</label>
+              <input 
+                type="number" 
+                name="tempo_real" 
+                min="0"
+                value={formData.tempo_real} 
+                onChange={handleChange} 
+                className={inputClass} 
+                placeholder="Ex: 45" 
+              />
+            </div>
+          </div>
+
           <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Etiquetas (separadas por vírgula)</label><input type="text" name="tags" value={formData.tags} onChange={handleChange} className={inputClass} placeholder="Ex: Prova, Leitura, Trabalho em Grupo" /></div>
           
           {/* File Upload Section */}

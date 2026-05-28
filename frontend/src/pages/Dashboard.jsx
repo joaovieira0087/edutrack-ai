@@ -2,11 +2,18 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import subjectService from '../services/subjectService';
 import taskService from '../services/taskService';
+import analyticsService from '../services/analyticsService';
 import TaskCardTodoist from '../components/TaskCardTodoist';
 import EditTaskModal from '../components/EditTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CalendarGrid from '../components/CalendarGrid';
+import KanbanView from '../components/KanbanView';
+import AIInsightsCard from '../components/AIInsightsCard';
 import { useToast } from '../context/ToastContext';
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, Legend 
+} from 'recharts';
 
 const Dashboard = () => {
   const [subjects, setSubjects] = useState([]);
@@ -19,6 +26,9 @@ const Dashboard = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [detailsTask, setDetailsTask] = useState(null);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('edutrack_view_mode') || 'list');
+  const [analytics, setAnalytics] = useState(null);
+  const [advancedAnalytics, setAdvancedAnalytics] = useState(null);
+  const [refreshInsightsTrigger, setRefreshInsightsTrigger] = useState(0);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -27,12 +37,19 @@ const Dashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [subjectsData, tasksData] = await Promise.all([
+      // Sincronizar status antes de buscar dados
+      await taskService.syncStatuses().catch(() => {});
+
+      const [subjectsData, tasksData, analyticsData, advancedData] = await Promise.all([
         subjectService.getAll(),
-        taskService.getAll()
+        taskService.getAll(),
+        subjectService.getAnalytics().catch(() => null),
+        analyticsService.getAdvancedAnalytics().catch(() => null),
       ]);
       setSubjects(subjectsData);
       setTasks(tasksData);
+      if (analyticsData) setAnalytics(analyticsData);
+      if (advancedData) setAdvancedAnalytics(advancedData);
     } catch (err) {
       console.error('Erro ao carregar dados do dashboard:', err);
     } finally {
@@ -44,15 +61,80 @@ const Dashboard = () => {
     fetchData();
   }, [fetchData]);
 
+  /**
+   * Toggle inteligente de status:
+   *  pendente → em_andamento → concluida
+   *  atrasada → em_andamento → concluida
+   *  concluida → pendente (reabrir)
+   *  bloqueada → sem ação (bloqueada)
+   */
   const toggleTaskStatus = async (task) => {
-    const newStatus = task.status === 'concluida' ? 'pendente' : 'concluida';
+    if (task.status === 'bloqueada') {
+      addToast({ message: 'Esta tarefa está bloqueada por dependências.', type: 'error', duration: 3000 });
+      return;
+    }
+
+    let newStatus;
+    switch (task.status) {
+      case 'concluida':
+        newStatus = 'pendente';
+        break;
+      case 'pendente':
+      case 'atrasada':
+        newStatus = 'em_andamento';
+        break;
+      case 'em_andamento':
+        newStatus = 'concluida';
+        break;
+      default:
+        newStatus = 'pendente';
+    }
+
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     
     try {
-      await taskService.update(task.id, { status: newStatus });
+      const response = await taskService.update(task.id, { status: newStatus });
+      if (response && response.unblockedTasks && response.unblockedTasks.length > 0) {
+        const unblockedNames = response.unblockedTasks.map(t => t.titulo).join(', ');
+        addToast({ message: `🔓 Tarefas desbloqueadas: ${unblockedNames}`, type: 'success', duration: 6000 });
+      }
+      fetchData(); // Trigger full refresh to update dependent tasks and analytics
     } catch (error) {
       console.error('Erro ao atualizar status da tarefa:', error);
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+      addToast({ message: error.response?.data?.message || 'Erro ao atualizar status.', type: 'error', duration: 3000 });
+    }
+  };
+
+  const handleMoveTask = async (task, newStatus) => {
+    if (task.status === newStatus) return;
+    
+    // Prevent invalid transition explicitly in UI although backend blocks it
+    if (task.status === 'bloqueada' && (newStatus === 'em_andamento' || newStatus === 'concluida')) {
+      addToast({ message: 'Resolva as dependências primeiro.', type: 'error', duration: 4000 });
+      return;
+    }
+
+    // Optimistic Update
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+
+    try {
+      const response = await taskService.update(task.id, { status: newStatus });
+      if (response && response.unblockedTasks && response.unblockedTasks.length > 0) {
+        const unblockedNames = response.unblockedTasks.map(t => t.titulo).join(', ');
+        addToast({ message: `🔓 Tarefas desbloqueadas: ${unblockedNames}`, type: 'success', duration: 6000 });
+      }
+
+      if (newStatus === 'concluida') {
+        setRefreshInsightsTrigger(prev => prev + 1);
+      }
+
+      fetchData(); // Trigger full refresh to update dependent tasks and analytics
+    } catch (error) {
+      console.error('Erro ao mover tarefa:', error);
+      // Revert Optimistic Update
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+      addToast({ message: error.response?.data?.message || 'Erro ao mover tarefa.', type: 'error', duration: 3000 });
     }
   };
 
@@ -62,6 +144,7 @@ const Dashboard = () => {
   };
 
   const handleSaveEdit = () => {
+    setRefreshInsightsTrigger(prev => prev + 1);
     fetchData();
     setIsEditModalOpen(false);
     setEditingTask(null);
@@ -133,7 +216,13 @@ const Dashboard = () => {
       }
 
       // 2. Filtros Rápidos
-      if (activeFilter === 'high_priority') {
+      if (activeFilter === 'pendente' || activeFilter === 'em_andamento' || activeFilter === 'concluida' || activeFilter === 'atrasada') {
+        if (activeFilter === 'pendente' && task.status === 'em_andamento') {
+          // Permite que "pendente" mostre "em_andamento" também
+        } else if (task.status !== activeFilter) {
+          return false;
+        }
+      } else if (activeFilter === 'high_priority') {
         if (Number(task.priority) !== 1) return false;
       } else if (activeFilter === 'due_today') {
         if (!task.data_prevista) return false;
@@ -145,6 +234,8 @@ const Dashboard = () => {
         if (taskDate.getTime() !== today.getTime()) return false;
       } else if (activeFilter === 'no_subject') {
         if (task.subject_id) return false;
+      } else if (activeFilter === 'blocked') {
+        if (task.status !== 'bloqueada') return false;
       }
 
       return true;
@@ -163,16 +254,29 @@ const Dashboard = () => {
       today: { title: 'Hoje', icon: 'calendar', color: 'text-gray-900', tasks: [] },
       tomorrow: { title: 'Amanhã', icon: 'calendar-day', color: 'text-orange-600', tasks: [] },
       upcoming: { title: 'Próximos dias', icon: 'calendar-range', color: 'text-gray-500', tasks: [] },
+      blocked: { title: 'Bloqueadas', icon: 'lock', color: 'text-gray-500', tasks: [] },
       recentlyCompleted: { title: 'Concluídas Recentemente', icon: 'check-circle', color: 'text-emerald-600', tasks: [] }
     };
 
     filteredTasks.forEach(task => {
+      // Bloqueadas vão para coluna própria
+      if (task.status === 'bloqueada') {
+        categories.blocked.tasks.push(task);
+        return;
+      }
+
       if (task.status === 'concluida') {
         const updateDate = new Date(task.updatedAt || task.createdAt);
         updateDate.setHours(0, 0, 0, 0);
         if (updateDate.getTime() === today.getTime()) {
           categories.recentlyCompleted.tasks.push(task);
         }
+        return;
+      }
+
+      // Status atrasada é determinado pelo backend
+      if (task.status === 'atrasada') {
+        categories.overdue.tasks.push(task);
         return;
       }
 
@@ -206,9 +310,11 @@ const Dashboard = () => {
   const totalSubjectsCount = subjects.length;
   const totalTasksCount = tasks.length;
   const pendingTasksCount = tasks.filter(t => t.status !== 'concluida').length;
-  const overallProgress = totalTasksCount === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'concluida').length / totalTasksCount) * 100);
 
-  const colors = {
+  // Use weighted progress from analytics if available, else fallback to flat calculation
+  const overallProgress = analytics?.global?.progress ?? (totalTasksCount === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'concluida').length / totalTasksCount) * 100));
+
+  const colorMap = {
     blue: { bg: 'bg-blue-50', text: 'text-blue-500', hoverText: 'group-hover:text-blue-600' },
     indigo: { bg: 'bg-indigo-50', text: 'text-indigo-500', hoverText: 'group-hover:text-indigo-600' },
     red: { bg: 'bg-red-50', text: 'text-red-500', hoverText: 'group-hover:text-red-600' },
@@ -216,6 +322,7 @@ const Dashboard = () => {
   };
 
   const showToday = temporalTasks.today.tasks.length > 0;
+  const showBlocked = temporalTasks.blocked.tasks.length > 0;
 
   if (loading) {
     return (
@@ -229,7 +336,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-12 pb-20 px-4 max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-8 pb-20 px-4 max-w-[1600px] mx-auto min-h-screen">
       <div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">Seu Dashboard Acadêmico</h1>
         <p className="text-gray-500 mt-2 text-lg">Central de comando unificada e inteligente.</p>
@@ -246,94 +353,136 @@ const Dashboard = () => {
           <Link to={card.path} key={idx} className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex items-center justify-between group cursor-pointer">
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{card.label}</p>
-              <h3 className={`text-3xl font-black mt-2 text-gray-800 ${colors[card.color].hoverText} transition-colors`}>{card.value}</h3>
+              <h3 className={`text-3xl font-black mt-2 text-gray-800 ${colorMap[card.color].hoverText} transition-colors`}>{card.value}</h3>
             </div>
-            <div className={`w-14 h-14 rounded-2xl ${colors[card.color].bg} flex items-center justify-center ${colors[card.color].text} shadow-inner`}>
+            <div className={`w-14 h-14 rounded-2xl ${colorMap[card.color].bg} flex items-center justify-center ${colorMap[card.color].text} shadow-inner`}>
               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={card.iconPath}></path></svg>
             </div>
           </Link>
         ))}
       </div>
 
-      {/* Search and Filters Section */}
-      <div className="flex flex-col md:flex-row gap-5 justify-between items-center bg-white/80 backdrop-blur-md p-4 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgb(0,0,0,0.03)] animate-in fade-in slide-in-from-bottom-2 duration-500 relative z-10 w-full overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-transparent pointer-events-none"></div>
-        {/* Search Input */}
-        <div className="relative w-full md:w-80 group">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 group-focus-within:text-blue-500 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      {/* Weighted Progress Bar */}
+      {analytics?.global && (
+        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgb(0,0,0,0.03)] animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-indigo-500 p-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+              </span>
+              <div>
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">Progresso Ponderado Global</h3>
+                <p className="text-[10px] text-gray-400 font-medium">Calculado com base no peso de cada tarefa</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-indigo-600">{analytics.global.progress}%</span>
+              <p className="text-[10px] text-gray-400 font-bold">{analytics.global.weightedCompleted}/{analytics.global.weightedTotal} pts</p>
+            </div>
           </div>
-          <input
-            type="text"
-            className="w-full bg-white border border-gray-200/80 text-gray-900 text-sm font-medium rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 block pl-11 p-3.5 transition-all placeholder-gray-400 hover:border-gray-300 shadow-sm outline-none relative z-10"
-            placeholder="Buscar títulos ou disciplinas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
+            <div 
+              className="bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" 
+              style={{ width: `${analytics.global.progress}%` }}
+            ></div>
+          </div>
         </div>
-        
-        {/* Filter Chips */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto relative z-10">
-          {[
-            { id: 'all', label: 'Todos', icon: null },
-            { id: 'high_priority', label: 'Alta Prioridade', icon: <svg className="w-3.5 h-3.5 mr-1.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
-            { id: 'due_today', label: 'Vence Hoje', icon: <svg className="w-3.5 h-3.5 mr-1.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> },
-            { id: 'no_subject', label: 'Sem Matéria', icon: <svg className="w-3.5 h-3.5 mr-1.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> }
-          ].map(filter => (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 border flex items-center ${
-                activeFilter === filter.id 
-                  ? 'bg-gray-900 text-white border-gray-900 shadow-md transform scale-[1.02]' 
-                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              {filter.icon}
-              {filter.label}
-            </button>
-          ))}
-        </div>
+      )}
 
-        {/* View Mode Switcher */}
-        <div className="flex bg-gray-100/80 p-1 rounded-xl shadow-inner border border-gray-200/50 relative z-10 w-full md:w-auto justify-center">
-          <button 
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Visualização em Lista"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-          </button>
-          <button 
-            onClick={() => setViewMode('calendar')}
-            className={`p-2 rounded-lg flex items-center justify-center transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Visualização em Calendário"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Task Area */}
-      <div className="space-y-12 mt-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+      {/* Main Task Area with Integrated Search & Filters */}
+      <div className="flex flex-col gap-6 relative z-0 w-full">
+        {/* Row 1: Title and Statistics (Estatísticas) */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full bg-transparent">
+          <h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-3 shrink-0">
              <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
              {viewMode === 'calendar' ? 'Calendário de Prazos' : 'Gestão de Atividades'}
           </h2>
-          <Link to="/tarefas/nova" className="text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-4 py-2 rounded-xl transition-all">
-             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
-             Nova Tarefa
+          
+          {/* Estatísticas de Tarefas */}
+          <div className="flex flex-row flex-wrap items-center justify-start lg:justify-end gap-2 flex-1 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar">
+            {[
+              { id: 'all', label: 'Todas', count: totalTasksCount, color: 'text-gray-600', activeClass: 'bg-gray-800 text-white border-gray-900 shadow-sm' },
+              { id: 'atrasada', label: 'Atrasadas', count: tasks.filter(t => t.status === 'atrasada').length, color: 'text-red-600', activeClass: 'bg-red-100 text-red-700 shadow-sm border-red-200' },
+              { id: 'pendente', label: 'Próximas', count: tasks.filter(t => t.status === 'pendente' || t.status === 'em_andamento').length, color: 'text-blue-600', activeClass: 'bg-blue-100 text-blue-700 shadow-sm border-blue-200' },
+              { id: 'concluida', label: 'Concluídas', count: tasks.filter(t => t.status === 'concluida').length, color: 'text-emerald-600', activeClass: 'bg-emerald-100 text-emerald-700 shadow-sm border-emerald-200' },
+            ].map(filter => (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id)}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-[11px] uppercase tracking-wider font-bold transition-all duration-300 border flex items-center gap-2 ${
+                  activeFilter === filter.id || (filter.id === 'pendente' && (activeFilter === 'pendente' || activeFilter === 'em_andamento'))
+                    ? filter.activeClass + ' scale-[1.02]'
+                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span>{filter.label}</span>
+                <span className={`px-2 py-0.5 rounded-md bg-white/80 dark:bg-gray-900/50 shadow-sm border border-gray-100/50 ${activeFilter === filter.id ? '' : filter.color}`}>
+                  {filter.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 1.5: Botão Adicionar Tarefa */}
+        <div className="flex justify-start w-full mt-2 lg:mt-4 mb-4">
+          <Link to="/tarefas/nova" className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 z-20">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+             Adicionar Tarefa
           </Link>
         </div>
 
+        {/* Row 2: Search and View Mode Switcher */}
+        <div className="flex flex-col md:flex-row gap-5 justify-between items-center bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-[0_4px_24px_rgb(0,0,0,0.03)] w-full">
+          {/* Search Input */}
+          <div className="relative w-full group flex-1">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 group-focus-within:text-blue-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <input
+              type="text"
+              className="w-full bg-transparent border-0 text-gray-900 text-sm font-medium rounded-2xl focus:ring-0 block pl-11 p-3 transition-all placeholder-gray-400 outline-none"
+              placeholder="Buscar títulos, tags ou disciplinas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="hidden md:block w-px h-8 bg-gray-200"></div>
+          
+          {/* View Mode Switcher */}
+          <div className="flex bg-gray-100/80 p-1 rounded-xl shadow-inner border border-gray-200/50 w-full md:w-auto justify-center">
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              title="Visualização em Lista"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <button 
+              onClick={() => setViewMode('calendar')}
+              className={`p-2 rounded-lg flex items-center justify-center transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              title="Visualização em Calendário"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </button>
+            <button 
+              onClick={() => setViewMode('kanban')}
+              className={`p-2 rounded-lg flex items-center justify-center transition-all ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+              title="Visualização em Kanban"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+            </button>
+          </div>
+        </div>
+
         {filteredTasks.length === 0 && (searchTerm !== '' || activeFilter !== 'all') ? (
-          <div className="py-24 text-center bg-white/50 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 shadow-sm relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent"></div>
-            <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center text-blue-500 mb-6 border border-gray-100 rotate-3 hover:rotate-0 hover:scale-105 transition-all">
+          <div className="py-24 text-center bg-white/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 shadow-sm relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50/50 dark:from-blue-900/10 via-transparent to-transparent"></div>
+            <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm flex items-center justify-center text-blue-500 mb-6 border border-gray-100 dark:border-gray-700 rotate-3 hover:rotate-0 hover:scale-105 transition-all">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
-            <h3 className="text-2xl font-black text-gray-800 mb-3 relative z-10">Nenhum resultado</h3>
+            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-3 relative z-10">Nenhum resultado</h3>
             {searchTerm ? (
               <p className="text-base font-medium text-gray-500 mb-8 relative z-10">Nenhuma tarefa encontrada para "<span className="font-bold text-gray-700">{searchTerm}</span>"</p>
             ) : (
@@ -341,7 +490,7 @@ const Dashboard = () => {
             )}
             <button 
               onClick={() => { setSearchTerm(''); setActiveFilter('all'); }} 
-              className="relative z-10 px-6 py-3 bg-white text-sm font-bold text-blue-600 border-2 border-blue-100 rounded-2xl hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-95"
+              className="relative z-10 px-6 py-3 bg-white dark:bg-gray-800 text-sm font-bold text-blue-600 dark:text-blue-400 border-2 border-blue-100 dark:border-blue-900/50 rounded-2xl hover:bg-blue-50 dark:hover:bg-gray-700 hover:border-blue-200 transition-all shadow-sm active:scale-95"
             >
               Limpar Filtros e Busca
             </button>
@@ -357,8 +506,16 @@ const Dashboard = () => {
               onViewDetails={handleViewDetails}
             />
           </div>
+        ) : viewMode === 'kanban' ? (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <KanbanView 
+              tasks={filteredTasks}
+              subjects={subjects}
+              onTaskMove={handleMoveTask}
+            />
+          </div>
         ) : (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 ${showToday ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8 items-start`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${showToday && showBlocked ? 'lg:grid-cols-5' : showToday || showBlocked ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8 items-start`}>
             {[
             { id: 'overdue', title: 'Atrasadas', key: 'overdue', color: 'text-red-600', icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -369,15 +526,20 @@ const Dashboard = () => {
             { id: 'upcoming', title: 'Próximas', key: 'upcoming', color: 'text-blue-600', icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
             )},
+            { id: 'blocked', title: 'Bloqueadas', key: 'blocked', color: 'text-gray-500', icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+            )},
             { id: 'recentlyCompleted', title: 'Concluídas', key: 'recentlyCompleted', color: 'text-emerald-600', icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
             )}
           ].map((col) => {
             if (col.id === 'today' && !showToday) return null;
+            if (col.id === 'blocked' && !showBlocked) return null;
             const category = temporalTasks[col.key];
             const isToday = col.id === 'today';
-            const columnBg = isToday ? 'bg-indigo-50/40' : 'bg-gray-50/50';
-            const columnBorder = isToday ? 'border-indigo-100' : 'border-gray-100';
+            const isBlocked = col.id === 'blocked';
+            const columnBg = isToday ? 'bg-indigo-50/40' : isBlocked ? 'bg-gray-50/60' : 'bg-gray-50/50';
+            const columnBorder = isToday ? 'border-indigo-100' : isBlocked ? 'border-gray-200' : 'border-gray-100';
 
             return (
               <div key={col.id} className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -389,7 +551,7 @@ const Dashboard = () => {
                     <h2 className={`text-base font-black ${col.color} tracking-tight uppercase`}>
                       {col.title}
                     </h2>
-                    <span className="text-[10px] font-black text-gray-400 bg-white border border-gray-100 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-2 py-0.5 rounded-full">
                       {category.tasks.length}
                     </span>
                   </div>
@@ -397,37 +559,45 @@ const Dashboard = () => {
 
                 <div className={`space-y-4 min-h-[100px] ${col.key === 'recentlyCompleted' ? 'opacity-70' : ''}`}>
                   {category.tasks.length === 0 ? (
-                    <div className="px-5 py-10 text-center bg-white/40 border-[1.5px] border-dashed border-gray-200/80 rounded-3xl flex flex-col items-center justify-center transition-all bg-gradient-to-b from-transparent to-gray-50/50 group hover:border-gray-300">
+                    <div className="px-5 py-10 text-center bg-white/40 dark:bg-gray-800/20 border-[1.5px] border-dashed border-gray-200/80 dark:border-gray-700 rounded-3xl flex flex-col items-center justify-center transition-all bg-gradient-to-b from-transparent to-gray-50/50 dark:to-transparent group hover:border-gray-300 dark:hover:border-gray-600">
                       {col.key === 'overdue' && (
                         <>
-                          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100/50 shadow-inner group-hover:scale-110 group-hover:-rotate-6 transition-transform">
+                          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100/50 dark:border-emerald-500/20 shadow-inner group-hover:scale-110 group-hover:-rotate-6 transition-transform">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                           </div>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">Parabéns! Você não tem pendências atrasadas.</p>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-300 leading-relaxed">Parabéns! Você não tem pendências atrasadas.</p>
                         </>
                       )}
                       {col.key === 'today' && (
                         <>
-                          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 mb-4 border border-amber-100/50 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                          <div className="w-12 h-12 bg-amber-50 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mb-4 border border-amber-100/50 dark:border-amber-500/20 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                           </div>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">Tudo limpo por aqui! Que tal um descanso ou uma leitura extra?</p>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-300 leading-relaxed">Tudo limpo por aqui! Que tal um descanso ou uma leitura extra?</p>
                         </>
                       )}
                       {col.key === 'upcoming' && (
                         <>
-                          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 mb-4 border border-blue-100/50 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-500 mb-4 border border-blue-100/50 dark:border-blue-800/50 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                           </div>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">Nenhuma tarefa no radar agora. Aproveite!</p>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-relaxed">Nenhuma tarefa no radar agora. Aproveite!</p>
+                        </>
+                      )}
+                      {col.key === 'blocked' && (
+                        <>
+                          <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-gray-400 mb-4 border border-gray-200/50 dark:border-gray-700 shadow-inner group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                          </div>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-relaxed">Sem tarefas bloqueadas. Fluxo livre!</p>
                         </>
                       )}
                       {col.key === 'recentlyCompleted' && (
                         <>
-                          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 mb-4 border border-indigo-100/50 shadow-inner group-hover:scale-110 transition-transform">
+                          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-500 mb-4 border border-indigo-100/50 dark:border-indigo-500/20 shadow-inner group-hover:scale-110 transition-transform">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
                           </div>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">Sua produtividade está ótima! Continue assim.</p>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-300 leading-relaxed">Sua produtividade está ótima! Continue assim.</p>
                         </>
                       )}
                     </div>
@@ -454,7 +624,7 @@ const Dashboard = () => {
 
       {/* Caixa de Entrada Section - Apenas visualização de Lista */}
       {viewMode === 'list' && temporalTasks.upcoming.tasks.filter(t => !t.data_prevista).length > 0 && (
-         <div className="mt-16 pt-10 border-t border-gray-100 animate-in fade-in slide-in-from-bottom-6 duration-700">
+         <div className="pt-10 border-t border-gray-100 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="flex items-center gap-3 mb-6">
                 <span className="text-gray-500 p-2 bg-gray-100 rounded-xl border border-gray-200">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
@@ -482,10 +652,202 @@ const Dashboard = () => {
          </div>
       )}
 
+      {/* --- Advanced AI Analytics --- */}
+      <div className="space-y-12 relative z-0">
+        {(() => {
+          if (!advancedAnalytics?.global_metrics || !advancedAnalytics?.subjects || advancedAnalytics.subjects.length === 0) return null;
+          
+          const effs = advancedAnalytics.subjects.filter(s => s.efficiency_ratio > 0).map(s => s.efficiency_ratio);
+          const overallEfficiency = effs.length === 0 ? '0.00' : (effs.reduce((a, b) => a + b, 0) / effs.length).toFixed(2);
+
+          return (
+            <div className="bg-gradient-to-br from-indigo-900 to-blue-900 p-6 rounded-3xl border border-indigo-700 shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-3 duration-700 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <svg className="w-48 h-48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="bg-indigo-500/30 text-indigo-200 p-2 rounded-xl backdrop-blur-md border border-indigo-400/30">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-black text-indigo-100 uppercase tracking-widest">Inteligência Estratégica AI</h3>
+                    <p className="text-[11px] text-indigo-300/80 font-bold">Análise creditada pelo Motor Python</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
+                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Velocidade de Estudo
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-white">{advancedAnalytics.global_metrics.velocity_points_per_min}</span>
+                      <span className="text-xs text-indigo-300 font-medium mb-1">pts/min</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
+                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Previsão (ETA)
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-lg font-black text-white leading-tight">
+                        {advancedAnalytics.global_metrics.forecasted_completion_date 
+                          ? new Date(advancedAnalytics.global_metrics.forecasted_completion_date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) 
+                          : 'Sem dados suficientes'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
+                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                      Eficiência Geral
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-white">{overallEfficiency}</span>
+                      <span className="text-xs text-indigo-300 font-medium mb-1">Taxa Est./Real</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* AI Insights Card — Gemini */}
+        <AIInsightsCard refreshTrigger={refreshInsightsTrigger} />
+
+        {/* Subject Progress and Analytics Section */}
+        {analytics?.subjects && analytics.subjects.length > 0 && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* List of Subjects with Progress */}
+            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                Progresso por Disciplina
+              </h3>
+              <div className="space-y-6">
+                {analytics.subjects.map((sub, idx) => (
+                  <div key={sub.id} className="space-y-2 group">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <span className="text-sm font-black text-gray-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{sub.nome}</span>
+                        <p className="text-[10px] text-gray-400 font-bold">{sub.taskCount} tarefas registradas</p>
+                      </div>
+                      <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{sub.progress_weighted}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100/50 rounded-full h-2.5 overflow-hidden border border-gray-100">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                          sub.progress_weighted === 100 ? 'bg-emerald-500' : 
+                          sub.progress_weighted > 50 ? 'bg-indigo-500' : 'bg-blue-400'
+                        }`} 
+                        style={{ width: `${sub.progress_weighted || 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Time Distribution Charts */}
+            <div className="space-y-8">
+              {/* Pie Chart: Time Distribution */}
+              <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] h-full">
+                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
+                  Tempo Gasto por Disciplina (horas)
+                </h3>
+                <div className="h-[250px]">
+                  {(() => {
+                    const pieData = (advancedAnalytics?.subjects || []).filter(s => s.total_hours > 0).map(s => ({ ...s, name: s.subject_name || s.nome }));
+                    if (pieData.length === 0) {
+                      return (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                          <svg className="w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /></svg>
+                          <p className="text-sm font-bold">Nenhuma tarefa com tempo registrado</p>
+                          <p className="text-xs mt-1">Conclua tarefas com tempo real para ver o gráfico</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="total_hours"
+                            nameKey="name"
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={[ '#4f46e5', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6' ][index % 6]} stroke="none" />
+                            ))}
+                          </Pie>
+                          <RechartTooltip 
+                            formatter={(value) => [`${value}h`, 'Tempo Real']}
+                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                          />
+                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Bar Chart: Estimated vs Actual */}
+              <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                  Estimado vs Real (minutos)
+                </h3>
+                <div className="h-[250px]">
+                  {(() => {
+                    const barData = (advancedAnalytics?.subjects || []).map(s => ({ name: s.subject_name || s.nome, estimado: s.time_estimated_min, real: s.time_real_min }));
+                    if (barData.length === 0) {
+                      return (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                          <svg className="w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                          <p className="text-sm font-bold">Nenhum dado de tempo disponível</p>
+                          <p className="text-xs mt-1">Preencha tempos estimados e reais nas tarefas</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={barData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                          <RechartTooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }} />
+                          <Bar dataKey="estimado" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={20} />
+                          <Bar dataKey="real" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20} />
+                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {isEditModalOpen && (
         <EditTaskModal 
           task={editingTask} 
           subjects={subjects} 
+          allTasks={tasks}
           onClose={() => setIsEditModalOpen(false)} 
           onSave={handleSaveEdit} 
         />

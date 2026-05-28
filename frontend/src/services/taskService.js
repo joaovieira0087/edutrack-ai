@@ -17,14 +17,20 @@ const taskService = {
       data_prevista: data.data_prevista,
       status: data.status || 'pendente',
       priority: data.priority || 4,
+      peso: data.peso || 1,
       tags: data.tags || [],
       attachments: data.attachments || [],
+      blocked_by: data.blocked_by || [],
     };
     const response = await crudApi.post('/tasks', payload);
     return response.data;
   },
   update: async (id, data) => {
     const response = await crudApi.patch(`/tasks/${id}`, data);
+    return response.data;
+  },
+  syncStatuses: async () => {
+    const response = await crudApi.post('/tasks/sync-statuses');
     return response.data;
   },
   getTrash: async () => {

@@ -1,0 +1,61 @@
+{
+    "generated_at": "2026-05-06T21:17:04",
+    "user_id": "69fbd7d01918e94f7bea60fa",
+    "subjects": [
+        {
+            "id": "69fbd88b1918e94f7bea6110",
+            "nome": "Engenharia de IA",
+            "subject_name": "Engenharia de IA",
+            "progress_weighted": 100.0,
+            "total_weight": 8,
+            "completed_weight": 8,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69fbd8b41918e94f7bea6114",
+            "nome": "software",
+            "subject_name": "software",
+            "progress_weighted": 100.0,
+            "total_weight": 32,
+            "completed_weight": 32,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 100.0,
+        "total_points": 40,
+        "completed_points": 40,
+        "velocity_points_per_min": 0,
+        "total_time_spent_min": 0,
+        "total_time_estimated_min": 0,
+        "forecasted_completion_date": null,
+        "global_deviation_percent": null
+    },
+    "deviations": [
+        {
+            "subject": "Engenharia de IA",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "software",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 2,
+        "subjects_with_time_data": 0,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 0,
+        "subjects_on_track": 0
+    }
+}

@@ -1,0 +1,61 @@
+{
+    "generated_at": "2026-05-06T21:49:12",
+    "user_id": "69fbe1090b93442bb078b59d",
+    "subjects": [
+        {
+            "id": "69fbe12a0b93442bb078b5b7",
+            "nome": "engenharia de sof",
+            "subject_name": "engenharia de sof",
+            "progress_weighted": 0,
+            "total_weight": 0,
+            "completed_weight": 0,
+            "time_real_min": 0,
+            "total_hours": 0.0,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        },
+        {
+            "id": "69fbe1430b93442bb078b5bb",
+            "nome": "software",
+            "subject_name": "software",
+            "progress_weighted": 100.0,
+            "total_weight": 8,
+            "completed_weight": 8,
+            "time_real_min": 80,
+            "total_hours": 1.33,
+            "time_estimated_min": 0,
+            "efficiency_ratio": 0,
+            "deviation_percent": null
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 100.0,
+        "total_points": 8,
+        "completed_points": 8,
+        "velocity_points_per_min": 0.1,
+        "total_time_spent_min": 80,
+        "total_time_estimated_min": 0,
+        "forecasted_completion_date": "2026-05-06T21:49:12",
+        "global_deviation_percent": null
+    },
+    "deviations": [
+        {
+            "subject": "engenharia de sof",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        },
+        {
+            "subject": "software",
+            "deviation_percent": null,
+            "status": "sem_dados"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 2,
+        "subjects_with_time_data": 0,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 0,
+        "subjects_on_track": 0
+    }
+}
