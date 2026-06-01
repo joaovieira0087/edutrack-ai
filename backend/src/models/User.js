@@ -14,6 +14,20 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Campos de Controle da Verificação de E-mail (Signup OTP)
+  is_verified: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
+  verification_code: {
+    type: String,
+    default: null,
+  },
+  verification_code_expires: {
+    type: Date,
+    default: null,
+  },
   // Campos de Controle da Recuperação de Senha (OTP 4 dígitos)
   reset_code: {
     type: String,

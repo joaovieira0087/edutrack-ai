@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sendResetCodeEmail } = require('../services/emailService');
+const { sendResetCodeEmail, sendVerificationCodeEmail } = require('../services/emailService');
 
 const authController = {
   signup: async (req, res) => {
@@ -14,16 +14,37 @@ const authController = {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
+      // Gera código OTP de 4 dígitos para verificação de e-mail
+      const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
       const user = new User({
         nome: name,
         email: email,
-        senha: hashedPassword
+        senha: hashedPassword,
+        is_verified: false,
+        verification_code: verificationCode,
+        verification_code_expires: verificationCodeExpires
       });
 
       await user.save();
 
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      res.status(201).json({ authToken: token });
+      // Log visual para desenvolvimento local
+      console.log('\n╔══════════════════════════════════════════════════════════╗');
+      console.log('║  🛠️  [DEV MODE] CÓDIGO DE VERIFICAÇÃO DE CONTA          ║');
+      console.log('╠══════════════════════════════════════════════════════════╣');
+      console.log(`║  E-mail: ${email}`);
+      console.log(`║  Código OTP: ${verificationCode}`);
+      console.log('╚══════════════════════════════════════════════════════════╝\n');
+
+      // Dispara e-mail de verificação
+      await sendVerificationCodeEmail(user.email, user.nome, verificationCode);
+
+      // Retorna sucesso SEM token — conta precisa de verificação
+      res.status(201).json({
+        message: 'Conta criada com sucesso! Verifique seu e-mail para ativar sua conta.',
+        requiresVerification: true
+      });
     } catch (error) {
       res.status(500).json({ message: 'Erro no servidor', error: error.message });
     }
@@ -39,10 +60,131 @@ const authController = {
       const validPassword = await bcrypt.compare(password, user.senha);
       if (!validPassword) return res.status(400).json({ message: 'Credenciais inválidas.' });
 
+      // Bloqueio: impedir login de conta não verificada
+      if (user.is_verified === false) {
+        return res.status(403).json({
+          message: 'Seu e-mail ainda não foi verificado. Insira o código de verificação enviado para o seu e-mail.',
+          requiresVerification: true,
+          email: user.email
+        });
+      }
+
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
       res.status(200).json({ authToken: token });
     } catch (error) {
       res.status(500).json({ message: 'Erro no servidor', error: error.message });
+    }
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // Verificação de E-mail (Signup OTP)
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * Valida o código OTP de verificação de e-mail e ativa a conta
+   * POST /api/auth/verify-email
+   * Body: { email, code }
+   */
+  verifyEmail: async (req, res) => {
+    try {
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res.status(400).json({ message: 'E-mail e código são obrigatórios.' });
+      }
+
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        return res.status(404).json({ message: 'Usuário não encontrado.' });
+      }
+
+      // Conta já verificada
+      if (user.is_verified === true) {
+        return res.status(400).json({ message: 'Esta conta já foi verificada. Faça login normalmente.' });
+      }
+
+      // Verifica se o código expirou
+      if (!user.verification_code_expires || user.verification_code_expires < new Date()) {
+        return res.status(400).json({
+          message: 'O código expirou. Solicite um novo código de verificação.',
+          expired: true
+        });
+      }
+
+      // Compara o código
+      if (user.verification_code !== code) {
+        return res.status(400).json({ message: 'Código inválido. Verifique o e-mail e tente novamente.' });
+      }
+
+      // Código correto: ativar conta e limpar campos efêmeros
+      user.is_verified = true;
+      user.verification_code = null;
+      user.verification_code_expires = null;
+      await user.save();
+
+      console.log(`[AuthController] ✅ E-mail verificado com sucesso para: ${email}`);
+
+      // Gera e retorna o JWT para login automático
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      return res.status(200).json({
+        message: 'E-mail verificado com sucesso!',
+        authToken: token
+      });
+    } catch (error) {
+      console.error('[AuthController] Erro em verifyEmail:', error.message);
+      res.status(500).json({ message: 'Erro no servidor ao verificar o e-mail.' });
+    }
+  },
+
+  /**
+   * Reenvia o código de verificação de e-mail
+   * POST /api/auth/resend-verification
+   * Body: { email }
+   */
+  resendVerificationCode: async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: 'O campo e-mail é obrigatório.' });
+      }
+
+      const genericMessage = 'Se este e-mail estiver cadastrado e pendente de verificação, um novo código foi enviado.';
+
+      const user = await User.findOne({ email });
+
+      // Anti-enumeração: retorna sucesso mesmo se e-mail não existir
+      if (!user) {
+        return res.status(200).json({ message: genericMessage });
+      }
+
+      // Conta já verificada
+      if (user.is_verified === true) {
+        return res.status(200).json({ message: genericMessage });
+      }
+
+      // Gera novo código
+      const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+      console.log('\n╔══════════════════════════════════════════════════════════╗');
+      console.log('║  🛠️  [DEV MODE] NOVO CÓDIGO DE VERIFICAÇÃO (REENVIO)    ║');
+      console.log('╠══════════════════════════════════════════════════════════╣');
+      console.log(`║  E-mail: ${email}`);
+      console.log(`║  Código OTP: ${verificationCode}`);
+      console.log('╚══════════════════════════════════════════════════════════╝\n');
+
+      user.verification_code = verificationCode;
+      user.verification_code_expires = verificationCodeExpires;
+      await user.save();
+
+      await sendVerificationCodeEmail(user.email, user.nome, verificationCode);
+
+      return res.status(200).json({ message: genericMessage });
+    } catch (error) {
+      console.error('[AuthController] Erro em resendVerificationCode:', error.message);
+      res.status(500).json({ message: 'Erro no servidor ao reenviar o código de verificação.' });
     }
   },
 
@@ -218,4 +360,3 @@ const authController = {
 };
 
 module.exports = authController;
-

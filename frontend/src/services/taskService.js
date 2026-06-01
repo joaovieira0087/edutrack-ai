@@ -18,6 +18,7 @@ const taskService = {
       status: data.status || 'pendente',
       priority: data.priority || 4,
       peso: data.peso || 1,
+      tempo_estimado: data.tempo_estimado || 0,
       tags: data.tags || [],
       attachments: data.attachments || [],
       blocked_by: data.blocked_by || [],

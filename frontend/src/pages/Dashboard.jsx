@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import subjectService from '../services/subjectService';
 import taskService from '../services/taskService';
 import analyticsService from '../services/analyticsService';
@@ -8,7 +8,6 @@ import EditTaskModal from '../components/EditTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CalendarGrid from '../components/CalendarGrid';
 import KanbanView from '../components/KanbanView';
-import AIInsightsCard from '../components/AIInsightsCard';
 import { useToast } from '../context/ToastContext';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, 
@@ -16,6 +15,7 @@ import {
 } from 'recharts';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [subjects, setSubjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,10 +25,12 @@ const Dashboard = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [detailsTask, setDetailsTask] = useState(null);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('edutrack_view_mode') || 'list');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('edutrack_view_mode') || 'kanban');
   const [analytics, setAnalytics] = useState(null);
   const [advancedAnalytics, setAdvancedAnalytics] = useState(null);
   const [refreshInsightsTrigger, setRefreshInsightsTrigger] = useState(0);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [completedTaskData, setCompletedTaskData] = useState(null);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -98,7 +100,12 @@ const Dashboard = () => {
         const unblockedNames = response.unblockedTasks.map(t => t.titulo).join(', ');
         addToast({ message: `🔓 Tarefas desbloqueadas: ${unblockedNames}`, type: 'success', duration: 6000 });
       }
-      fetchData(); // Trigger full refresh to update dependent tasks and analytics
+      if (newStatus === 'concluida') {
+        setRefreshInsightsTrigger(prev => prev + 1);
+        setCompletedTaskData(task);
+        setIsSuccessModalOpen(true);
+      }
+      fetchData();
     } catch (error) {
       console.error('Erro ao atualizar status da tarefa:', error);
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
@@ -127,9 +134,10 @@ const Dashboard = () => {
 
       if (newStatus === 'concluida') {
         setRefreshInsightsTrigger(prev => prev + 1);
+        setCompletedTaskData(task);
+        setIsSuccessModalOpen(true);
       }
-
-      fetchData(); // Trigger full refresh to update dependent tasks and analytics
+      fetchData();
     } catch (error) {
       console.error('Erro ao mover tarefa:', error);
       // Revert Optimistic Update
@@ -652,196 +660,48 @@ const Dashboard = () => {
          </div>
       )}
 
-      {/* --- Advanced AI Analytics --- */}
-      <div className="space-y-12 relative z-0">
-        {(() => {
-          if (!advancedAnalytics?.global_metrics || !advancedAnalytics?.subjects || advancedAnalytics.subjects.length === 0) return null;
-          
-          const effs = advancedAnalytics.subjects.filter(s => s.efficiency_ratio > 0).map(s => s.efficiency_ratio);
-          const overallEfficiency = effs.length === 0 ? '0.00' : (effs.reduce((a, b) => a + b, 0) / effs.length).toFixed(2);
-
-          return (
-            <div className="bg-gradient-to-br from-indigo-900 to-blue-900 p-6 rounded-3xl border border-indigo-700 shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-3 duration-700 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <svg className="w-48 h-48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="bg-indigo-500/30 text-indigo-200 p-2 rounded-xl backdrop-blur-md border border-indigo-400/30">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-black text-indigo-100 uppercase tracking-widest">Inteligência Estratégica AI</h3>
-                    <p className="text-[11px] text-indigo-300/80 font-bold">Análise creditada pelo Motor Python</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
-                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      Velocidade de Estudo
-                    </p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-white">{advancedAnalytics.global_metrics.velocity_points_per_min}</span>
-                      <span className="text-xs text-indigo-300 font-medium mb-1">pts/min</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
-                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                      Previsão (ETA)
-                    </p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-lg font-black text-white leading-tight">
-                        {advancedAnalytics.global_metrics.forecasted_completion_date 
-                          ? new Date(advancedAnalytics.global_metrics.forecasted_completion_date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) 
-                          : 'Sem dados suficientes'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/50 backdrop-blur-sm">
-                    <p className="text-xs font-bold text-indigo-300/70 mb-1 uppercase tracking-wider flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                      Eficiência Geral
-                    </p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-white">{overallEfficiency}</span>
-                      <span className="text-xs text-indigo-300 font-medium mb-1">Taxa Est./Real</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      {/* Modal de Celebração de Conclusão */}
+      {isSuccessModalOpen && completedTaskData && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-2xl max-w-md w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Elemento de background sutil */}
+            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500"></div>
+            
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-100 shadow-inner">
+              <svg className="w-10 h-10 text-emerald-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-          );
-        })()}
-
-        {/* AI Insights Card — Gemini */}
-        <AIInsightsCard refreshTrigger={refreshInsightsTrigger} />
-
-        {/* Subject Progress and Analytics Section */}
-        {analytics?.subjects && analytics.subjects.length > 0 && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* List of Subjects with Progress */}
-            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                Progresso por Disciplina
-              </h3>
-              <div className="space-y-6">
-                {analytics.subjects.map((sub, idx) => (
-                  <div key={sub.id} className="space-y-2 group">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <span className="text-sm font-black text-gray-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{sub.nome}</span>
-                        <p className="text-[10px] text-gray-400 font-bold">{sub.taskCount} tarefas registradas</p>
-                      </div>
-                      <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{sub.progress_weighted}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100/50 rounded-full h-2.5 overflow-hidden border border-gray-100">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                          sub.progress_weighted === 100 ? 'bg-emerald-500' : 
-                          sub.progress_weighted > 50 ? 'bg-indigo-500' : 'bg-blue-400'
-                        }`} 
-                        style={{ width: `${sub.progress_weighted || 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Time Distribution Charts */}
-            <div className="space-y-8">
-              {/* Pie Chart: Time Distribution */}
-              <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] h-full">
-                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
-                  Tempo Gasto por Disciplina (horas)
-                </h3>
-                <div className="h-[250px]">
-                  {(() => {
-                    const pieData = (advancedAnalytics?.subjects || []).filter(s => s.total_hours > 0).map(s => ({ ...s, name: s.subject_name || s.nome }));
-                    if (pieData.length === 0) {
-                      return (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                          <svg className="w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /></svg>
-                          <p className="text-sm font-bold">Nenhuma tarefa com tempo registrado</p>
-                          <p className="text-xs mt-1">Conclua tarefas com tempo real para ver o gráfico</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="total_hours"
-                            nameKey="name"
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={[ '#4f46e5', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6' ][index % 6]} stroke="none" />
-                            ))}
-                          </Pie>
-                          <RechartTooltip 
-                            formatter={(value) => [`${value}h`, 'Tempo Real']}
-                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
-                          />
-                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Bar Chart: Estimated vs Actual */}
-              <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                  Estimado vs Real (minutos)
-                </h3>
-                <div className="h-[250px]">
-                  {(() => {
-                    const barData = (advancedAnalytics?.subjects || []).map(s => ({ name: s.subject_name || s.nome, estimado: s.time_estimated_min, real: s.time_real_min }));
-                    if (barData.length === 0) {
-                      return (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                          <svg className="w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                          <p className="text-sm font-bold">Nenhum dado de tempo disponível</p>
-                          <p className="text-xs mt-1">Preencha tempos estimados e reais nas tarefas</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={barData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                          <RechartTooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }} />
-                          <Bar dataKey="estimado" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={20} />
-                          <Bar dataKey="real" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20} />
-                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    );
-                  })()}
-                </div>
-              </div>
+            
+            <h3 className="text-2xl font-black text-gray-800 mb-3">Excelente Trabalho! 🎉</h3>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Você concluiu a tarefa <strong className="text-gray-900 font-bold">"{completedTaskData.titulo}"</strong>!<br />
+              Quer ver como foi o seu desempenho em comparação com o seu planejamento?
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setIsSuccessModalOpen(false);
+                  navigate(`/ai-insights?taskId=${completedTaskData.id || completedTaskData._id}`);
+                }}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-2xl transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+              >
+                Ver Desempenho
+              </button>
+              <button
+                onClick={() => {
+                  setIsSuccessModalOpen(false);
+                  setCompletedTaskData(null);
+                }}
+                className="w-full py-4 bg-gray-50 hover:bg-gray-100 text-gray-500 font-bold text-sm rounded-2xl transition-all active:scale-[0.98]"
+              >
+                Fechar
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {isEditModalOpen && (
         <EditTaskModal 
@@ -860,6 +720,8 @@ const Dashboard = () => {
           onClose={() => { setIsDetailsModalOpen(false); setDetailsTask(null); }}
         />
       )}
+
+
     </div>
   );
 };

@@ -145,6 +145,9 @@ const taskController = {
         }
       }
 
+      // Forçar tempo_real=0 na criação — valor será calculado via transições de estado
+      body.tempo_real = 0;
+
       const statusLabel = body.status || 'pendente';
       const newTask = new AcademicTask({
         ...body,
@@ -192,6 +195,44 @@ const taskController = {
         // Registrar timestamps de conclusão
         if (body.status === 'concluida') {
           body.completed_at = new Date();
+
+          // --- CÁLCULO AUTOMÁTICO DO TEMPO REAL (History Scan) ---
+          let timestamp_inicio = null;
+          if (currentTask.history && currentTask.history.length > 0) {
+            for (const entry of currentTask.history) {
+              const action = entry.action;
+              const details = entry.details || '';
+
+              if (action === 'Criação') {
+                timestamp_inicio = entry.timestamp;
+                break;
+              }
+
+              const detailsLower = details.toLowerCase();
+              const isEdicaoOrStatus = action === 'Edição' || action === 'Auto-Status';
+              const isTargetStatus = detailsLower.includes('em_andamento') || 
+                                     detailsLower.includes('em andamento') || 
+                                     detailsLower.includes('pendente');
+
+              if (isEdicaoOrStatus && isTargetStatus) {
+                timestamp_inicio = entry.timestamp;
+                break;
+              }
+            }
+          }
+
+          if (!timestamp_inicio) {
+            timestamp_inicio = currentTask.createdAt;
+          }
+
+          let tempo_calculado = 1;
+          if (timestamp_inicio) {
+            const diffMs = Date.now() - new Date(timestamp_inicio).getTime();
+            tempo_calculado = Math.max(1, Math.round(diffMs / 60000));
+          }
+
+          body.tempo_real = tempo_calculado;
+          // --- FIM DO CÁLCULO ---
         } else if (currentTask.status === 'concluida' && body.status !== 'concluida') {
           body.completed_at = null;
         }
@@ -220,6 +261,7 @@ const taskController = {
         tags: 'Etiquetas',
         peso: 'Peso',
         blocked_by: 'Dependências',
+        tempo_real: 'Tempo Real',
       };
       const changedFields = Object.keys(body)
         .filter(k => fieldLabels[k])
@@ -228,15 +270,21 @@ const taskController = {
         ? `Campos alterados: ${changedFields.join(', ')}.`
         : 'Atualização realizada.';
 
+      const isConcluir = body.status === 'concluida' && currentTask.status !== 'concluida';
+      const actionLabel = isConcluir ? 'Conclusão' : 'Edição';
+      const detailsLabel = isConcluir 
+        ? `Tarefa concluída. Tempo real gasto: ${body.tempo_real} minuto(s).` 
+        : details;
+
       const updatedTask = await AcademicTask.findOneAndUpdate(
         { _id: id, user_id: req.user.id },
         {
           $set: body,
           $push: {
             history: {
-              action: 'Edição',
+              action: actionLabel,
               timestamp: new Date(),
-              details,
+              details: detailsLabel,
             },
           },
         },

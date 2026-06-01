@@ -37,9 +37,18 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (data) => {
     const result = await authService.signup(data);
-    setUser(result.user);
-    setIsAuthenticated(true);
     return result;
+  };
+
+  const loginWithToken = async (token, email) => {
+    setIsAuthenticated(true);
+    setUser({ email });
+    try {
+      const userData = await authService.me();
+      setUser(userData);
+    } catch (err) {
+      console.error("Erro ao carregar usuário pós-verificação", err);
+    }
   };
 
   const logout = () => {
@@ -49,7 +58,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, signup, loginWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,6 +11,11 @@ import CreateTaskView from './pages/CreateTaskView';
 import LoginView from './pages/LoginView';
 import ForgotPasswordView from './pages/ForgotPasswordView';
 import CompletedTasksView from './pages/CompletedTasksView';
+import AiInsightsView from './pages/AiInsightsView';
+import LandingView from './pages/LandingView';
+import VerifyEmailView from './pages/VerifyEmailView';
+import ActivitiesTreeView from './pages/ActivitiesTreeView';
+import TaskDetailsView from './pages/TaskDetailsView';
 
 import { ToastProvider } from './context/ToastContext';
 import TrashView from './pages/TrashView';
@@ -42,19 +47,23 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Rota pública */}
+      {/* Rotas públicas */}
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingView />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginView />} />
       <Route path="/esqueci-senha" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordView />} />
+      <Route path="/verify-email" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <VerifyEmailView />} />
 
       {/* Rotas protegidas */}
-      <Route path="/" element={<ProtectedRoute><Layout><Navigate to="/dashboard" replace /></Layout></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+      <Route path="/atividades" element={<ProtectedRoute><Layout><ActivitiesTreeView /></Layout></ProtectedRoute>} />
+      <Route path="/tasks/:id" element={<ProtectedRoute><Layout><TaskDetailsView /></Layout></ProtectedRoute>} />
       <Route path="/disciplinas" element={<ProtectedRoute><Layout><SubjectsView /></Layout></ProtectedRoute>} />
       <Route path="/disciplinas/nova" element={<ProtectedRoute><Layout><CreateSubjectView /></Layout></ProtectedRoute>} />
       <Route path="/disciplinas/:id" element={<ProtectedRoute><Layout><SubjectDetailView /></Layout></ProtectedRoute>} />
       <Route path="/tarefas/nova" element={<ProtectedRoute><Layout><CreateTaskView /></Layout></ProtectedRoute>} />
       <Route path="/concluidas" element={<ProtectedRoute><Layout><CompletedTasksView /></Layout></ProtectedRoute>} />
       <Route path="/lixeira" element={<ProtectedRoute><Layout><TrashView /></Layout></ProtectedRoute>} />
+      <Route path="/ai-insights" element={<ProtectedRoute><Layout><AiInsightsView /></Layout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

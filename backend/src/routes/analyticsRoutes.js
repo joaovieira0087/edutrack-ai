@@ -14,4 +14,10 @@ router.get('/insights', analyticsController.getAIInsights);
 // Geração de relatório PDF (Python)
 router.get('/report/pdf', analyticsController.generatePDFReport);
 
+// Listagem de tarefas concluídas para insights
+router.get('/tasks/completed', analyticsController.getCompletedTasks);
+
+// Insights por tarefa atômica
+router.get('/tasks/:id/insights', analyticsController.getTaskAIInsights);
+
 module.exports = router;

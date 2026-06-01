@@ -9,7 +9,7 @@ const CreateTaskView = () => {
   const [error, setError] = useState('');
   const [subjects, setSubjects] = useState([]);
   const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
-  const [formData, setFormData] = useState({ titulo: '', subject_id: '', data_prevista: '', status: 'pendente', descricao: '', priority: 4, peso: 1, tags: '', attachments: [], blocked_by: [], tempo_estimado: 0, tempo_real: 0 });
+  const [formData, setFormData] = useState({ titulo: '', subject_id: '', data_prevista: '', status: 'pendente', descricao: '', priority: 4, peso: 1, tags: '', attachments: [], blocked_by: [], tempo_estimado: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
 
@@ -179,7 +179,7 @@ const CreateTaskView = () => {
             <p className="text-[10px] text-gray-400 font-medium">Tarefas com peso maior impactam mais o progresso da disciplina.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+          <div className="p-5 bg-blue-50/30 rounded-2xl border border-blue-100/50">
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700">Tempo Estimado (minutos)</label>
               <input 
@@ -191,18 +191,7 @@ const CreateTaskView = () => {
                 className={inputClass} 
                 placeholder="Ex: 60" 
               />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700">Tempo Real Gasto (minutos)</label>
-              <input 
-                type="number" 
-                name="tempo_real" 
-                min="0"
-                value={formData.tempo_real} 
-                onChange={handleChange} 
-                className={inputClass} 
-                placeholder="Ex: 45" 
-              />
+              <p className="text-[10px] text-gray-400 font-medium">O tempo real será calculado automaticamente quando você concluir a tarefa.</p>
             </div>
           </div>
 

@@ -28,13 +28,19 @@ const LoginView = () => {
     try {
       if (isSignup) {
         await signup(formData);
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
       } else {
         await login({ email: formData.email, password: formData.password });
+        navigate('/dashboard');
       }
-      navigate('/dashboard');
     } catch (err) {
-      const message = err.response?.data?.message || 'Ocorreu um erro. Verifique seus dados e tente novamente.';
-      setError(message);
+      if (err.response?.status === 403 && err.response?.data?.requiresVerification) {
+        // Redireciona para tela de verificação se e-mail não verificado
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        const message = err.response?.data?.message || 'Ocorreu um erro. Verifique seus dados e tente novamente.';
+        setError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }

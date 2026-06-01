@@ -12,5 +12,7 @@ router.get('/', (req, res) => {
 router.get('/analytics', subjectController.getAnalytics);
 router.get('/:id', subjectController.getById);
 router.post('/', subjectController.create);
+router.patch('/:id', subjectController.update);
+router.delete('/:id', subjectController.delete);
 
 module.exports = router;

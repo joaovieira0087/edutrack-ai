@@ -1,0 +1,43 @@
+{
+    "generated_at": "2026-06-01T12:26:06",
+    "user_id": "6a1da063e12bab07b40876b5",
+    "subjects": [
+        {
+            "id": "6a1da0aee12bab07b40876d4",
+            "nome": "engenharia de software ",
+            "subject_name": "engenharia de software ",
+            "progress_weighted": 100.0,
+            "total_weight": 17,
+            "completed_weight": 17,
+            "time_real_min": 12,
+            "total_hours": 0.2,
+            "time_estimated_min": 81,
+            "efficiency_ratio": 0.15,
+            "deviation_percent": -85.19
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 100.0,
+        "total_points": 17,
+        "completed_points": 17,
+        "velocity_points_per_min": 1.4167,
+        "total_time_spent_min": 12,
+        "total_time_estimated_min": 81,
+        "forecasted_completion_date": "2026-06-01T12:26:06",
+        "global_deviation_percent": -85.19
+    },
+    "deviations": [
+        {
+            "subject": "engenharia de software ",
+            "deviation_percent": -85.19,
+            "status": "abaixo"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 1,
+        "subjects_with_time_data": 1,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 1,
+        "subjects_on_track": 0
+    }
+}

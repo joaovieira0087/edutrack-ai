@@ -35,6 +35,22 @@ const analyticsService = {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   },
+
+  /**
+   * Busca os insights atômicos de uma tarefa concluída.
+   */
+  getTaskAIInsights: async (taskId) => {
+    const response = await crudApi.get(`/analytics/tasks/${taskId}/insights`);
+    return response.data;
+  },
+
+  /**
+   * Busca a lista de tarefas concluídas do usuário logado.
+   */
+  getCompletedTasks: async () => {
+    const response = await crudApi.get('/analytics/tasks/completed');
+    return response.data;
+  },
 };
 
 export default analyticsService;

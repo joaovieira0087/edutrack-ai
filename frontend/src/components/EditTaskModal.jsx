@@ -13,7 +13,6 @@ const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
     peso: 1,
     descricao: '',
     status: 'pendente',
-    tempo_real: '',
     tags: '',
     attachments: [],
     blocked_by: []
@@ -33,7 +32,6 @@ const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
         peso: task.peso || 1,
         descricao: task.descricao || '',
         status: task.status || 'pendente',
-        tempo_real: task.tempo_real || '',
         tags: task.tags ? task.tags.join(', ') : '',
         attachments: task.attachments || [],
         blocked_by: task.blocked_by || []
@@ -76,10 +74,7 @@ const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
       setError('Selecione uma disciplina.');
       return;
     }
-    if (formData.status === 'concluida' && (!formData.tempo_real || Number(formData.tempo_real) <= 0)) {
-      setError('Por favor, informe o tempo real gasto (em minutos) para poder concluir esta tarefa.');
-      return;
-    }
+
 
     setIsSubmitting(true);
     setError('');
@@ -87,7 +82,6 @@ const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
     try {
       const finalData = { 
         ...formData, 
-        tempo_real: formData.tempo_real ? Number(formData.tempo_real) : 0,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [] 
       };
       await taskService.update(task.id, finalData);
@@ -323,22 +317,7 @@ const EditTaskModal = ({ task, subjects, allTasks = [], onClose, onSave }) => {
               </select>
             </div>
             
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Tempo Real (minutos)</label>
-              <input 
-                type="number" 
-                name="tempo_real" 
-                value={formData.tempo_real} 
-                onChange={handleChange} 
-                className={inputClass}
-                placeholder="Ex: 60"
-                min="0"
-                required={formData.status === 'concluida'}
-              />
-              {formData.status === 'concluida' && (
-                <p className="text-[10px] text-orange-500 font-bold ml-1 animate-pulse">Obrigatório para concluir.</p>
-              )}
-            </div>
+
           </div>
 
           {formData.subject_id && (

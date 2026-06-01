@@ -120,6 +120,46 @@ const subjectController = {
       res.status(500).json({ message: 'Erro ao calcular analytics', error: error.message });
     }
   },
+
+  // PATCH /subjects/:id
+  update: async (req, res) => {
+    try {
+      const id = req.params.id;
+      if (!id) return res.status(400).json({ message: 'ID da disciplina é requerido.' });
+
+      const updatedSubject = await Subject.findOneAndUpdate(
+        { _id: id, user_id: req.user.id },
+        { $set: req.body },
+        { new: true }
+      );
+
+      if (!updatedSubject) return res.status(404).json({ message: 'Disciplina não encontrada' });
+      
+      const obj = updatedSubject.toObject();
+      obj.id = obj._id;
+      res.json(obj);
+    } catch (error) {
+      res.status(500).json({ message: 'Erro ao atualizar disciplina', error: error.message });
+    }
+  },
+
+  // DELETE /subjects/:id
+  delete: async (req, res) => {
+    try {
+      const id = req.params.id;
+      if (!id) return res.status(400).json({ message: 'ID da disciplina é requerido.' });
+
+      const deletedSubject = await Subject.findOneAndDelete({ _id: id, user_id: req.user.id });
+      if (!deletedSubject) return res.status(404).json({ message: 'Disciplina não encontrada' });
+
+      // Deletar todas as tarefas associadas a esta disciplina
+      await AcademicTask.deleteMany({ subject_id: id, user_id: req.user.id });
+
+      res.json({ message: 'Disciplina e suas tarefas associadas foram excluídas com sucesso.' });
+    } catch (error) {
+      res.status(500).json({ message: 'Erro ao excluir disciplina', error: error.message });
+    }
+  }
 };
 
 module.exports = subjectController;

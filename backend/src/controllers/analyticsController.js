@@ -346,6 +346,103 @@ const analyticsController = {
       });
     }
   },
+
+  // GET /api/analytics/tasks/:id/insights
+  getTaskAIInsights: async (req, res) => {
+    try {
+      const taskId = req.params.id;
+      const userId = req.user.id;
+
+      // 1. Buscar a tarefa no MongoDB pelo ID fornecido, com tenant isolation
+      const task = await AcademicTask.findOne({ _id: taskId, user_id: userId })
+        .populate('subject_id', 'nome');
+
+      if (!task) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+
+      // 2. Garantir que a tarefa esteja com o status concluida
+      if (task.status !== 'concluida') {
+        return res.status(400).json({ message: 'Apenas tarefas concluídas possuem insights de desempenho.' });
+      }
+
+      // 3. Executar o cálculo do Desvio Percentual no próprio Node.js
+      const tempoReal = task.tempo_real || 0;
+      const tempoEstimado = task.tempo_estimado || 0;
+      const deviation = calcDeviation(tempoReal, tempoEstimado);
+      
+      const classification = deviation === null ? 'no_prazo' :
+                             deviation > 20 ? 'acima' :
+                             deviation < -10 ? 'abaixo' : 'no_prazo';
+
+      // 4. Obter o nome da disciplina
+      const subjectName = task.subject_id?.nome || 'Disciplina Geral';
+
+      // 5. Chamar o serviço Gemini para obter dica de produtividade baseada na tarefa
+      const insightText = await geminiService.generateTaskInsight({
+        titulo: task.titulo,
+        subjectName,
+        tempoEstimado,
+        tempoReal,
+        deviation,
+        classification,
+      });
+
+      return res.json({
+        task: {
+          id: task._id,
+          titulo: task.titulo,
+          descricao: task.descricao,
+          tempo_estimado: tempoEstimado,
+          tempo_real: tempoReal,
+          subject_name: subjectName,
+          status: task.status,
+          completed_at: task.completed_at,
+        },
+        deviation: deviation !== null ? Math.round(deviation * 100) / 100 : null,
+        classification,
+        insight: insightText,
+      });
+
+    } catch (error) {
+      console.error('Erro ao gerar insight da tarefa:', error);
+      res.status(500).json({ message: 'Erro ao gerar insight da tarefa.', error: error.message });
+    }
+  },
+
+  // GET /api/analytics/tasks/completed
+  getCompletedTasks: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // Buscar tarefas com status: 'concluida' e is_deleted: false do usuário autenticado
+      const tasks = await AcademicTask.find({
+        user_id: userId,
+        status: 'concluida',
+        is_deleted: false
+      })
+      .populate('subject_id', 'nome')
+      .sort({ completed_at: -1, updatedAt: -1 });
+
+      const mappedTasks = tasks.map(t => {
+        const obj = typeof t.toObject === 'function' ? t.toObject() : { ...t };
+        return {
+          id: obj._id,
+          titulo: obj.titulo,
+          tempo_estimado: obj.tempo_estimado || 0,
+          tempo_real: obj.tempo_real || 0,
+          priority: obj.priority || 4,
+          subject_name: obj.subject_id?.nome || 'Disciplina Geral',
+          completed_at: obj.completed_at
+        };
+      });
+
+      return res.json(mappedTasks);
+    } catch (error) {
+      console.error('Erro ao buscar tarefas concluídas para insights:', error);
+      res.status(500).json({ message: 'Erro ao buscar tarefas concluídas para insights.', error: error.message });
+    }
+  },
 };
 
 module.exports = analyticsController;

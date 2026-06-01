@@ -25,6 +25,14 @@ const subjectService = {
     const response = await crudApi.post('/subjects', payload);
     return response.data;
   },
+  update: async (id, data) => {
+    const response = await crudApi.patch(`/subjects/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await crudApi.delete(`/subjects/${id}`);
+    return response.data;
+  },
 };
 
 export default subjectService;

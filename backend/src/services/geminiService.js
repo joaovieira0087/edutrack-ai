@@ -167,7 +167,42 @@ function generateFallbackInsights(studentData) {
   };
 }
 
+/**
+ * Gera dica atômica para uma tarefa concluída.
+ */
+async function generateTaskInsight(taskData) {
+  try {
+    const gemini = getModel();
+    const deviationStr = taskData.deviation !== null ? `${taskData.deviation.toFixed(1)}%` : '0%';
+    const prompt = `
+Você é o assistente de IA do EduTrack AI, especializado em produtividade acadêmica.
+O estudante João acabou de concluir a tarefa "${taskData.titulo}" da disciplina "${taskData.subjectName}".
+Ele estimou que levaria ${taskData.tempoEstimado} minutos, mas executou em ${taskData.tempoReal} minutos (Desvio de ${deviationStr}).
+Com base nesses dados e na classificação "${taskData.classification}" de desempenho (onde "acima" significa que levou muito mais tempo, "abaixo" significa alta eficiência terminando antes, e "no_prazo" significa que terminou muito próximo do planejado), forneça uma dica de produtividade extremamente curta, direta e motivacional em português (PT-BR) para ajudar o aluno a calibrar seus próximos planejamentos.
+Sua dica deve ter no máximo 3 linhas e ser muito focada no desvio apresentado.
+`.trim();
+
+    const result = await gemini.generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error('Erro na API Gemini para dica de tarefa:', error.message);
+    return generateFallbackTaskInsight(taskData);
+  }
+}
+
+function generateFallbackTaskInsight(taskData) {
+  const { titulo, deviation, classification } = taskData;
+  if (classification === 'acima') {
+    return `Você levou ${Math.abs(deviation).toFixed(0)}% a mais de tempo do que o planejado para concluir "${titulo}". Para as próximas tarefas desta matéria, experimente a Técnica Pomodoro e divida o escopo em partes menores para calibrar melhor o tempo estimado.`;
+  } else if (classification === 'abaixo') {
+    return `Incrível! Você concluiu "${titulo}" super rápido, economizando tempo (${Math.abs(deviation).toFixed(0)}% abaixo do estimado). Use essa alta eficiência para adiantar outras leituras ou desfrutar de um merecido descanso!`;
+  } else {
+    return `Excelente precisão! Seu planejamento para "${titulo}" foi muito certeiro, concluindo dentro do prazo esperado. Continue com essa consistência para manter seus estudos organizados e sem estresse.`;
+  }
+}
+
 module.exports = {
   generateStudyInsights,
   generateFallbackInsights,
+  generateTaskInsight,
 };

@@ -15,11 +15,22 @@ const authService = {
   signup: async (data) => {
     const { name, email, password } = data;
     const response = await authApi.post('/auth/signup', { name, email, password });
+    // Token is no longer returned on signup. The user must verify their email.
+    return response.data;
+  },
+
+  verifyEmail: async (email, code) => {
+    const response = await authApi.post('/auth/verify-email', { email, code });
     if (response.data && response.data.authToken) {
       localStorage.setItem('edutrack_token', response.data.authToken);
-      localStorage.setItem('edutrack_user', JSON.stringify({ name, email }));
+      localStorage.setItem('edutrack_user', JSON.stringify({ email }));
     }
-    return { user: { name, email } };
+    return response.data;
+  },
+
+  resendVerificationCode: async (email) => {
+    const response = await authApi.post('/auth/resend-verification', { email });
+    return response.data;
   },
 
   getStoredUser: () => {

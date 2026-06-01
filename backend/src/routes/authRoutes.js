@@ -12,4 +12,8 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/verify-code', authController.verifyCode);
 router.post('/reset-password', authController.resetPassword);
 
+// Verificação de E-mail (Signup OTP)
+router.post('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authController.resendVerificationCode);
+
 module.exports = router;
