@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import subjectService from '../services/subjectService';
 import taskService from '../services/taskService';
 import EditSubjectModal from '../components/EditSubjectModal';
+import EditTaskModal from '../components/EditTaskModal';
 import CreateTaskModal from '../components/CreateTaskModal';
 
 const ActivitiesTreeView = () => {
@@ -17,6 +18,7 @@ const ActivitiesTreeView = () => {
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const [editingTask, setEditingTask] = useState(null);
 
   // Fetch subjects and tasks concurrently
   const loadData = async () => {
@@ -47,7 +49,26 @@ const ActivitiesTreeView = () => {
   };
 
   const handleSaveTask = () => {
+    setEditingTask(null);
     loadData(); // Reload all data to reflect the new task
+  };
+
+  const handleEditTask = (e, task) => {
+    e.stopPropagation();
+    setEditingTask(task);
+  };
+
+  const handleDeleteTask = async (e, task) => {
+    e.stopPropagation();
+    const confirmDelete = window.confirm(`Tem certeza que deseja mover a tarefa "${task.titulo}" para a lixeira?`);
+    if (!confirmDelete) return;
+    try {
+      await taskService.delete(task.id || task._id);
+      loadData();
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao excluir a tarefa.');
+    }
   };
 
   const handleEditSubject = (subject) => {
@@ -156,22 +177,22 @@ const ActivitiesTreeView = () => {
             return (
               <div 
                 key={subject.id || subject._id} 
-                className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border border-gray-100 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden"
+                className="bg-white dark:bg-[#1e2a3a] border border-slate-100 dark:border-slate-600/40 shadow-[0_8px_30px_rgb(0,0,0,0.02)] dark:shadow-lg dark:shadow-black/20 rounded-3xl p-6 flex flex-col justify-between hover:shadow-md dark:hover:border-slate-500/50 transition-all duration-300 relative overflow-hidden h-auto"
               >
-                <div>
+                <div className="h-auto">
                   {/* Cabeçalho da Disciplina com Controles à direita */}
-                  <div className="flex justify-between items-start border-b border-gray-50 dark:border-slate-800/50 pb-4 mb-4">
+                  <div className="flex justify-between items-start border-b border-gray-50 dark:border-slate-700 pb-4 mb-4 h-auto">
                     <div className="min-w-0 flex-1 pr-2">
-                      <h2 className="text-lg font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
+                      <h2 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wide truncate">
                         {subject.nome}
                       </h2>
                       {subject.professor && (
-                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 truncate">Prof. {subject.professor}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">Prof. {subject.professor}</p>
                       )}
                     </div>
                     
                     {/* Botões de Gestão da Disciplina */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 h-auto">
                       {/* Badge Contagem */}
                       <span className="text-[10px] font-black bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md border border-blue-100/50 dark:border-blue-800/20 mr-1">
                         {subjectTasks.length}
@@ -180,7 +201,7 @@ const ActivitiesTreeView = () => {
                       {/* Editar */}
                       <button 
                         onClick={() => handleEditSubject(subject)}
-                        className="p-1 hover:bg-gray-100 dark:hover:bg-slate-900 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors cursor-pointer"
+                        className="p-1 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors cursor-pointer"
                         title="Editar Disciplina"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,7 +212,7 @@ const ActivitiesTreeView = () => {
                       {/* Apagar */}
                       <button 
                         onClick={() => handleDeleteSubject(subject)}
-                        className="p-1 hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                        className="p-1 hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-500 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
                         title="Excluir Disciplina"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,40 +224,93 @@ const ActivitiesTreeView = () => {
 
                   {/* Lista de Tarefas Aninhadas */}
                   {subjectTasks.length === 0 ? (
-                    <div className="py-6 text-center text-gray-400 dark:text-slate-500 text-sm italic font-medium">
+                    <div className="py-6 text-center text-slate-500 dark:text-slate-400 text-sm italic font-medium">
                       Sem atividades pendentes.
                     </div>
                   ) : (
-                    <div className="space-y-3 mb-6 pl-2">
+                    <div className="space-y-3 mb-6 pl-2 h-auto">
                       {subjectTasks.map(task => {
                         const config = statusConfig[task.status] || statusConfig.pendente;
                         return (
                           <div 
                             key={task.id || task._id} 
                             onClick={() => navigate(`/tasks/${task.id || task._id}`)}
-                            className="flex items-start justify-between gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer group animate-in fade-in duration-200"
+                            className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all cursor-pointer group animate-in fade-in duration-200 h-auto"
                           >
-                            <div className="flex items-start gap-2.5 overflow-hidden">
+                            <div className="flex items-start gap-2.5 overflow-hidden flex-1 min-w-0 h-auto">
                               {/* Status Dot */}
                               <span className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${config.dotClass}`} />
-                              <div className="overflow-hidden">
-                                <p className="text-sm font-bold text-gray-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                              <div className="overflow-hidden h-auto">
+                                <p className={`text-sm font-medium text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate ${task.status === 'concluida' ? 'line-through text-slate-500/70' : ''}`}>
                                   {task.titulo}
                                 </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap h-auto">
+                                  <span className={`inline-flex items-center text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${config.badgeClass}`}>
                                     {config.label}
                                   </span>
                                   {task.tempo_estimado > 0 && (
-                                    <>
-                                      <span className="text-[10px] text-gray-300 dark:text-slate-600">•</span>
-                                      <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">
-                                        {task.tempo_estimado} min
+                                    <span className="inline-flex items-center text-[9px] font-medium bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-250/20 dark:border-slate-600/30">
+                                      {task.tempo_estimado} min
+                                    </span>
+                                  )}
+                                  {task.data_prevista && (
+                                    <span className="inline-flex items-center text-[9px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-250/20 dark:border-slate-600/30 whitespace-nowrap">
+                                      <svg className="w-2.5 h-2.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                      {new Date(task.data_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}
+                                    </span>
+                                  )}
+                                  {Number(task.peso) > 1 && (
+                                    <span className="inline-flex items-center text-[9px] font-black bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-250/20 dark:border-slate-600/30" title={`Peso: ${task.peso}`}>
+                                      {task.peso}x
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    const p = Number(task.priority) || 4;
+                                    const configP = {
+                                      1: { colorClass: 'text-red-500 dark:text-red-400', label: 'Urgente' },
+                                      2: { colorClass: 'text-amber-500 dark:text-amber-450', label: 'Alta' },
+                                      3: { colorClass: 'text-blue-500 dark:text-blue-450', label: 'Média' },
+                                      4: { colorClass: 'text-slate-400 dark:text-slate-500', label: 'Baixa' }
+                                    }[p];
+                                    return (
+                                      <span className={`inline-flex items-center ${configP.colorClass}`} title={`Prioridade: ${configP.label}`}>
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                          <path d="M4 2v20M4 4l16 5-16 5V4z"/>
+                                        </svg>
                                       </span>
-                                    </>
+                                    );
+                                  })()}
+                                  {task.attachments && task.attachments.length > 0 && (
+                                    <span className="inline-flex items-center text-slate-400 dark:text-slate-400" title={`${task.attachments.length} anexo(s)`}>
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                                      </svg>
+                                    </span>
                                   )}
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Botões de Gestão Individual da Tarefa */}
+                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-auto">
+                              <button
+                                onClick={(e) => handleEditTask(e, task)}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors cursor-pointer"
+                                title="Editar Tarefa"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteTask(e, task)}
+                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-500 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                title="Excluir Tarefa"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
                           </div>
                         );
@@ -246,11 +320,11 @@ const ActivitiesTreeView = () => {
                 </div>
 
                 {/* Botão de Criação Rápida */}
-                <div className="mt-4 pt-4 border-t border-gray-50 dark:border-slate-800/40">
+                <div className="mt-4 pt-4 border-t border-gray-50 dark:border-slate-700 h-auto">
                   <button
                     type="button"
                     onClick={() => handleOpenCreateTask(subject.id || subject._id)}
-                    className="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 text-gray-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 border border-dashed border-gray-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -278,6 +352,17 @@ const ActivitiesTreeView = () => {
           subject={editingSubject}
           onClose={() => setEditingSubject(null)}
           onSave={handleSaveSubject}
+        />
+      )}
+
+      {/* Modal de Edição de Tarefa */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          subjects={subjects}
+          allTasks={tasks}
+          onClose={() => setEditingTask(null)}
+          onSave={handleSaveTask}
         />
       )}
     </div>

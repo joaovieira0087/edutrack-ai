@@ -26,6 +26,7 @@ const AiInsightsView = () => {
 
   // Estados gerais
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
   // Estados Modo Foco em Tarefa
@@ -39,6 +40,7 @@ const AiInsightsView = () => {
   // Carregar dados conforme o modo ativo
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       if (taskId) {
         // MODO FOCO EM TAREFA
@@ -57,8 +59,10 @@ const AiInsightsView = () => {
       }
     } catch (err) {
       console.error('Erro ao carregar dados de inteligência artificial:', err);
+      const errMsg = err.response?.data?.message || 'Falha ao carregar os dados de IA.';
+      setError(errMsg);
       addToast({ 
-        message: err.response?.data?.message || 'Falha ao carregar os dados de IA.', 
+        message: errMsg, 
         type: 'error', 
         duration: 4000 
       });
@@ -92,14 +96,67 @@ const AiInsightsView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-100 animate-pulse"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+      <div className="w-full flex flex-col gap-6 animate-pulse p-4 md:p-6 pb-12">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-3 flex-1">
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div>
+            <div className="h-8 bg-slate-300 dark:bg-slate-750 rounded w-80"></div>
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-64"></div>
+          </div>
+          <div className="h-12 bg-slate-300 dark:bg-slate-700 rounded-2xl w-44 shrink-0"></div>
         </div>
-        <p className="mt-6 text-gray-500 font-bold text-lg animate-pulse">
-          Alimentando os algoritmos de IA...
-        </p>
+
+        {taskId ? (
+          // MODO FOCO EM TAREFA SKELETON
+          <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full">
+            {/* 3 Metric Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/60"></div>
+              <div className="h-28 bg-slate-300 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/60"></div>
+              <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/60"></div>
+            </div>
+
+            {/* Recommendation Banner */}
+            <div className="h-36 bg-slate-350 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700/80"></div>
+
+            {/* Graph Card */}
+            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/60"></div>
+          </div>
+        ) : (
+          // MODO VISÃO GERAL SKELETON
+          <div className="flex flex-col gap-6 w-full">
+            {/* Banner Summary */}
+            <div className="h-48 bg-slate-300 dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700/80"></div>
+
+            {/* Grid de 2 colunas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+              {/* Col 1 */}
+              <div className="flex flex-col gap-6">
+                <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60"></div>
+                <div className="h-[360px] bg-slate-300 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60"></div>
+                <div className="h-[360px] bg-slate-200 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60"></div>
+              </div>
+
+              {/* Col 2 */}
+              <div className="h-[600px] bg-slate-300 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60"></div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 rounded-2xl p-6 text-center max-w-lg mx-auto my-8 animate-in fade-in duration-300">
+        <svg className="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <p className="text-red-800 dark:text-red-300 font-bold mb-4">{error}</p>
+        <button onClick={loadData} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md transition-colors">
+          Tentar Novamente
+        </button>
       </div>
     );
   }
@@ -108,14 +165,15 @@ const AiInsightsView = () => {
   // RENDERIZAÇÃO: MODO FOCO EM TAREFA ATÔMICA
   // ==========================================
   if (taskId && taskInsight) {
-    const { task, deviation, classification, insight } = taskInsight;
+    const taskData = taskInsight;
+    const classification = taskData?.classification || 'no_prazo';
 
     const classificationMap = {
       acima: {
         label: 'Desvio Alto (Sobrecarga)',
-        bg: 'bg-red-50 border-red-100',
-        text: 'text-red-700',
-        iconColor: 'text-red-500',
+        bg: 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50',
+        text: 'text-red-700 dark:text-red-400',
+        iconColor: 'text-red-500 dark:text-red-400',
         icon: (
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -124,9 +182,9 @@ const AiInsightsView = () => {
       },
       abaixo: {
         label: 'Alta Eficiência',
-        bg: 'bg-emerald-50 border-emerald-100',
-        text: 'text-emerald-700',
-        iconColor: 'text-emerald-500',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50',
+        text: 'text-emerald-700 dark:text-emerald-400',
+        iconColor: 'text-emerald-500 dark:text-emerald-400',
         icon: (
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -135,9 +193,9 @@ const AiInsightsView = () => {
       },
       no_prazo: {
         label: 'Dentro do Planejado',
-        bg: 'bg-blue-50 border-blue-100',
-        text: 'text-blue-700',
-        iconColor: 'text-blue-500',
+        bg: 'bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50',
+        text: 'text-blue-700 dark:text-blue-400',
+        iconColor: 'text-blue-500 dark:text-blue-400',
         icon: (
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -146,24 +204,26 @@ const AiInsightsView = () => {
       },
     };
 
+    const currentClass = classificationMap[classification] || classificationMap.no_prazo;
+
     return (
       <div className="flex flex-col gap-8 pb-12 max-w-4xl mx-auto h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="bg-indigo-50 text-indigo-700 font-extrabold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full border border-indigo-100">
+            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-extrabold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800">
               Análise Atômica de Tarefa
             </span>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mt-3">
-              {task.titulo}
+            <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight mt-3">
+              {taskData?.task?.titulo || taskData?.task?.nome || 'Tarefa sem nome'}
             </h1>
-            <p className="text-gray-500 font-bold mt-1 uppercase text-[11px] tracking-wider">
-              Disciplina: <span className="text-indigo-600">{task.subject_name}</span>
+            <p className="text-slate-500 dark:text-slate-400 font-bold mt-1 uppercase text-[11px] tracking-wider">
+              Disciplina: <span className="text-indigo-600 dark:text-indigo-400">{taskData?.task?.subject_name}</span>
             </p>
           </div>
           <button
             onClick={handleClearFocus}
-            className="px-5 py-3 border-2 border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900 rounded-2xl font-bold text-sm transition-all bg-white shadow-sm flex items-center gap-2 active:scale-95 shrink-0 self-start"
+            className="px-5 py-3 border-2 border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 rounded-2xl font-bold text-sm transition-all bg-white dark:bg-slate-800 shadow-sm flex items-center gap-2 active:scale-95 shrink-0 self-start cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -174,16 +234,16 @@ const AiInsightsView = () => {
 
         {/* Comparativo de Tempos */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 h-auto">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tempo Planejado</span>
-            <h3 className="text-3xl font-black text-gray-800 mt-3">{formatTime(task.tempo_estimado)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-semibold">Definido no início da atividade</p>
+          <div className="bg-white dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 h-auto">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tempo Planejado</span>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100 mt-3">{formatTime(taskData?.task?.tempo_estimado)}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Definido no início da atividade</p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 h-auto">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tempo Real Gasto</span>
-            <h3 className="text-3xl font-black text-indigo-600 mt-3">{formatTime(task.tempo_real)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-semibold">Calculado silenciosamente pelo sistema</p>
+          <div className="bg-white dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 h-auto">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tempo Real Gasto</span>
+            <h3 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-3">{formatTime(taskData?.task?.tempo_real)}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Calculado silenciosamente pelo sistema</p>
           </div>
 
           <div className={`border p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-between group h-auto ${currentClass.bg}`}>
@@ -191,12 +251,12 @@ const AiInsightsView = () => {
               <span className={`text-xs font-extrabold uppercase tracking-widest ${currentClass.text}`}>
                 {currentClass.label}
               </span>
-              <h3 className="text-3xl font-black mt-3 text-gray-900">
-                {deviation !== null ? `${deviation > 0 ? '+' : ''}${deviation}%` : '0%'}
+              <h3 className="text-3xl font-black mt-3 text-slate-800 dark:text-slate-100">
+                {taskData?.deviation !== null ? `${taskData?.deviation > 0 ? '+' : ''}${taskData?.deviation}%` : '0%'}
               </h3>
-              <p className="text-xs text-gray-400 mt-1 font-semibold">Desvio em relação ao planejado</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Desvio em relação ao planejado</p>
             </div>
-            <div className={`w-14 h-14 rounded-2xl bg-white border border-inherit flex items-center justify-center shadow-inner shrink-0 ${currentClass.iconColor}`}>
+            <div className={`w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border border-inherit flex items-center justify-center shadow-inner shrink-0 ${currentClass.iconColor}`}>
               {currentClass.icon}
             </div>
           </div>
@@ -221,15 +281,15 @@ const AiInsightsView = () => {
               <h4 className="text-xs font-black text-indigo-200 uppercase tracking-widest">Recomendação Estratégica AI</h4>
               <h3 className="text-xl font-bold text-white tracking-tight">Dica de Produtividade do Gemini</h3>
               <p className="text-base text-indigo-100 font-medium leading-relaxed italic">
-                "{insight}"
+                "{taskData?.insight || 'Nenhum insight disponível para esta tarefa.'}"
               </p>
             </article>
           </div>
         </div>
 
         {/* Visual Duplo ProgressBar */}
-        <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700 p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
             <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
@@ -239,30 +299,30 @@ const AiInsightsView = () => {
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-extrabold text-gray-500 uppercase tracking-wider">Tempo Estimado</span>
-                <span className="text-sm font-black text-gray-700">{formatTime(task.tempo_estimado)}</span>
+                <span className="text-sm font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tempo Estimado</span>
+                <span className="text-sm font-black text-slate-800 dark:text-slate-100">{formatTime(taskData?.task?.tempo_estimado)}</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden shadow-inner">
+              <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-3.5 overflow-hidden shadow-inner">
                 <div className="bg-gray-400 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: '100%' }}></div>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-extrabold text-indigo-600 uppercase tracking-wider">Tempo Real Gasto</span>
-                <span className="text-sm font-black text-indigo-600">{formatTime(task.tempo_real)}</span>
+                <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Tempo Real Gasto</span>
+                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{formatTime(taskData?.task?.tempo_real)}</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden shadow-inner">
+              <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-3.5 overflow-hidden shadow-inner">
                 <div 
                   className={`h-full rounded-full transition-all duration-1000 ease-out ${
                     classification === 'acima' ? 'bg-red-500' :
                     classification === 'abaixo' ? 'bg-emerald-500' : 'bg-blue-500'
                   }`} 
-                  style={{ width: `${Math.min(100, (task.tempo_real / (task.tempo_estimado || 1)) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (taskData?.task?.tempo_real / (taskData?.task?.tempo_estimado || 1)) * 100)}%` }}
                 ></div>
               </div>
-              {task.tempo_real > task.tempo_estimado && (
-                <p className="text-[10px] text-red-500 font-bold mt-2 uppercase tracking-wide">
+              {taskData?.task?.tempo_real > taskData?.task?.tempo_estimado && (
+                <p className="text-[10px] text-red-500 dark:text-red-400 font-bold mt-2 uppercase tracking-wide">
                   ⚠️ O tempo real gasto superou o tempo estimado planejado originalmente.
                 </p>
               )}

@@ -16,4 +16,8 @@ router.post('/reset-password', authController.resetPassword);
 router.post('/verify-email', authController.verifyEmail);
 router.post('/resend-verification', authController.resendVerificationCode);
 
+// Perfil e Configurações (rotas protegidas)
+router.put('/profile', authMiddleware, authController.updateProfile);
+router.put('/settings', authMiddleware, authController.updateSettings);
+
 module.exports = router;

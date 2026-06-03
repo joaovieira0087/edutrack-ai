@@ -1,0 +1,43 @@
+{
+    "generated_at": "2026-06-03T00:28:47",
+    "user_id": "69e0373f4e222b92914325e4",
+    "subjects": [
+        {
+            "id": "69e037594e222b92914325f2",
+            "nome": "testee",
+            "subject_name": "testee",
+            "progress_weighted": 100.0,
+            "total_weight": 8,
+            "completed_weight": 8,
+            "time_real_min": 5,
+            "total_hours": 0.08,
+            "time_estimated_min": 29,
+            "efficiency_ratio": 0.17,
+            "deviation_percent": -82.76
+        }
+    ],
+    "global_metrics": {
+        "overall_progress": 100.0,
+        "total_points": 8,
+        "completed_points": 8,
+        "velocity_points_per_min": 1.6,
+        "total_time_spent_min": 5,
+        "total_time_estimated_min": 29,
+        "forecasted_completion_date": "2026-06-03T00:28:47",
+        "global_deviation_percent": -82.76
+    },
+    "deviations": [
+        {
+            "subject": "testee",
+            "deviation_percent": -82.76,
+            "status": "abaixo"
+        }
+    ],
+    "insights_context": {
+        "total_subjects": 1,
+        "subjects_with_time_data": 1,
+        "subjects_above_schedule": 0,
+        "subjects_below_schedule": 1,
+        "subjects_on_track": 0
+    }
+}

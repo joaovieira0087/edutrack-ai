@@ -81,7 +81,14 @@ const CreateTaskView = () => {
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Deadline <span className="text-red-500">*</span></label><input type="date" name="data_prevista" required value={formData.data_prevista} onChange={handleChange} className={inputClass} /></div>
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Prazo Final de Entrega <span className="text-red-500">*</span>
+              </label>
+              <input type="date" name="data_prevista" required value={formData.data_prevista} onChange={handleChange} className={inputClass} />
+              <p className="text-[10px] text-gray-400 font-medium ml-1">Selecione a data do calendário em que esta tarefa precisa ser entregue.</p>
+            </div>
           </div>
 
           {formData.subject_id && (
@@ -179,21 +186,26 @@ const CreateTaskView = () => {
             <p className="text-[10px] text-gray-400 font-medium">Tarefas com peso maior impactam mais o progresso da disciplina.</p>
           </div>
 
-          <div className="p-5 bg-blue-50/30 rounded-2xl border border-blue-100/50">
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700">Tempo Estimado (minutos)</label>
-              <input 
-                type="number" 
-                name="tempo_estimado" 
-                min="0"
-                value={formData.tempo_estimado} 
-                onChange={handleChange} 
-                className={inputClass} 
-                placeholder="Ex: 60" 
-              />
-              <p className="text-[10px] text-gray-400 font-medium">O tempo real será calculado automaticamente quando você concluir a tarefa.</p>
+            <div className="p-5 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Tempo de Foco Estimado (minutos)
+                </label>
+                <input 
+                  type="number" 
+                  name="tempo_estimado" 
+                  min="0"
+                  value={formData.tempo_estimado} 
+                  onChange={handleChange} 
+                  className={inputClass} 
+                  placeholder="Ex: 30, 60, 90, 120" 
+                />
+                <p className="text-[11px] text-gray-500 font-medium leading-relaxed ml-1">
+                  Insira quantos minutos você pretende passar focado executando ativamente esta tarefa (Ex: 30, 60, 90, 120 minutos). Este valor alimenta o cronômetro e os gráficos de desempenho da IA — não tem relação com o prazo de entrega acima.
+                </p>
+              </div>
             </div>
-          </div>
 
           <div className="space-y-2"><label className="block text-sm font-bold text-gray-700">Etiquetas (separadas por vírgula)</label><input type="text" name="tags" value={formData.tags} onChange={handleChange} className={inputClass} placeholder="Ex: Prova, Leitura, Trabalho em Grupo" /></div>
           

@@ -16,6 +16,7 @@ import LandingView from './pages/LandingView';
 import VerifyEmailView from './pages/VerifyEmailView';
 import ActivitiesTreeView from './pages/ActivitiesTreeView';
 import TaskDetailsView from './pages/TaskDetailsView';
+import ProfileView from './pages/ProfileView';
 
 import { ToastProvider } from './context/ToastContext';
 import TrashView from './pages/TrashView';
@@ -64,6 +65,7 @@ function AppRoutes() {
       <Route path="/concluidas" element={<ProtectedRoute><Layout><CompletedTasksView /></Layout></ProtectedRoute>} />
       <Route path="/lixeira" element={<ProtectedRoute><Layout><TrashView /></Layout></ProtectedRoute>} />
       <Route path="/ai-insights" element={<ProtectedRoute><Layout><AiInsightsView /></Layout></ProtectedRoute>} />
+      <Route path="/perfil" element={<ProtectedRoute><Layout><ProfileView /></Layout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

@@ -34,6 +34,10 @@ const taskService = {
     const response = await crudApi.post('/tasks/sync-statuses');
     return response.data;
   },
+  delete: async (id) => {
+    const response = await crudApi.patch(`/tasks/${id}/soft-delete`);
+    return response.data;
+  },
   getTrash: async () => {
     const response = await crudApi.get('/tasks/trash');
     return response.data || [];

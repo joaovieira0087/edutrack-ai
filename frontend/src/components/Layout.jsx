@@ -27,26 +27,50 @@ const Layout = ({ children }) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50/50 text-gray-800 font-sans">
-      <div 
+    <div className="flex h-screen bg-gray-50/50 dark:bg-slate-900 text-gray-800 dark:text-slate-100 font-sans">
+      {/* Mobile overlay */}
+      <div
         className={`fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-20 lg:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsSidebarOpen(false)}
-      ></div>
+      />
 
-      <aside className={`fixed inset-y-0 left-0 bg-white/80 backdrop-blur-xl border-r border-gray-100 w-64 transform transition-transform duration-300 ease-in-out z-30 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col`}>
+      {/* ─── Sidebar ──────────────────────────────────────────── */}
+      <aside className={`fixed inset-y-0 left-0 bg-white/80 dark:bg-slate-800/90 backdrop-blur-xl border-r border-gray-100 dark:border-slate-700 w-64 transform transition-transform duration-300 ease-in-out z-30 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col`}>
+
+        {/* Logo */}
         <div className="p-6 flex items-center justify-center lg:justify-start hover:opacity-80 transition-opacity">
           <Link to="/dashboard" className="flex items-center">
-            <img 
-              src="/logo.png" 
-              alt="EduTrack AI Logo" 
-              className="h-9 mr-3 object-contain" 
+            <img
+              src="/logo.png"
+              alt="EduTrack AI Logo"
+              className="h-9 mr-3 object-contain"
             />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-900 lg:block">
               EduTrack AI
             </span>
           </Link>
         </div>
-        <nav className="mt-8 px-4 space-y-2 flex-1">
+
+        {/* ─── Avatar + Name → /perfil ──────────────────────── */}
+        <div
+          onClick={() => { navigate('/perfil'); setIsSidebarOpen(false); }}
+          className="mx-4 mb-4 flex items-center gap-3 cursor-pointer p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/50 transition-all duration-200 group"
+          title="Ver meu perfil"
+        >
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-sm group-hover:shadow-md transition-shadow shrink-0">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+          <div className="overflow-hidden flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate group-hover:text-blue-600 transition-colors">{displayName}</p>
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 font-medium truncate">{user?.email || ''}</p>
+          </div>
+          <svg className="w-3.5 h-3.5 text-gray-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+
+        {/* Nav Items */}
+        <nav className="px-4 space-y-1 flex-1">
           {navItems.map(item => {
             const isActive = location.pathname.startsWith(item.path);
             return (
@@ -61,64 +85,84 @@ const Layout = ({ children }) => {
                 </svg>
                 {item.label}
               </Link>
-            )
+            );
           })}
         </nav>
 
-        {/* Botão de Logout */}
-        <div className="px-4 pb-6">
-          <button onClick={handleLogout} className="w-full flex items-center px-4 py-3 rounded-xl font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group">
-            <svg className="w-5 h-5 mr-3 text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        {/* ─── Footer: Theme Toggle + Logout ────────────────── */}
+        <div className="px-4 pb-6 space-y-1.5 mt-4">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-800/60 hover:text-gray-900 dark:hover:text-slate-100 transition-all duration-200 group"
+          >
+            {isDark ? (
+              /* Sol — mudar para Modo Claro */
+              <>
+                <svg className="w-5 h-5 text-amber-400 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Modo Claro</span>
+              </>
+            ) : (
+              /* Lua — mudar para Modo Escuro */
+              <>
+                <svg className="w-5 h-5 text-slate-500 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <span>Modo Escuro</span>
+              </>
+            )}
+          </button>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-4 py-3 rounded-xl font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 group"
+          >
+            <svg className="w-5 h-5 mr-3 text-gray-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
             Sair
           </button>
         </div>
       </aside>
 
+      {/* ─── Main Content Area ──────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="bg-white/70 backdrop-blur-md border-b border-gray-100 h-16 flex items-center justify-between px-4 sm:px-8 z-10 sticky top-0 transition-shadow">
-          <button 
+        {/* Header — sem theme toggle (movido para sidebar) */}
+        <header className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-700 h-16 flex items-center justify-between px-4 sm:px-8 z-10 sticky top-0 transition-shadow">
+          {/* Mobile hamburger */}
+          <button
             className="lg:hidden text-gray-400 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100/50 focus:outline-none transition-colors"
             onClick={() => setIsSidebarOpen(true)}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
-          
-          <div className="hidden lg:flex items-center text-sm font-medium text-gray-400">
-            Painel Central &raquo; <span className="ml-2 text-blue-600">{location.pathname}</span>
+
+          {/* Breadcrumb */}
+          <div className="hidden lg:flex items-center text-sm font-medium text-gray-400 dark:text-slate-500">
+            Painel Central &raquo; <span className="ml-2 text-blue-600 dark:text-blue-400">{location.pathname}</span>
           </div>
 
-          <div className="flex items-center space-x-3 ml-auto">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all duration-300 group"
-              title={isDark ? 'Modo Claro' : 'Modo Escuro'}
-              aria-label="Alternar tema"
-            >
-              {/* Sun icon */}
-              <svg
-                className={`w-5 h-5 absolute transition-all duration-500 ${isDark ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              {/* Moon icon */}
-              <svg
-                className={`w-5 h-5 absolute transition-all duration-500 ${isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-0'}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            </button>
-
-            <span className="text-gray-600 text-sm font-medium hidden sm:block">Olá, <span className="text-gray-900">{displayName}</span></span>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-50 flex items-center justify-center text-blue-700 font-bold border border-white shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+          {/* Right: User pill → navigate to /perfil */}
+          <div
+            className="flex items-center gap-3 ml-auto cursor-pointer group"
+            onClick={() => navigate('/perfil')}
+            title="Meu Perfil"
+          >
+            <span className="text-gray-600 dark:text-slate-300 text-sm font-medium hidden sm:block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              Olá, <span className="text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 font-bold">{displayName}</span>
+            </span>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-white shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
               {displayName.charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50/30">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50/30 dark:bg-slate-900/40">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

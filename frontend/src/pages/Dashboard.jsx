@@ -520,6 +520,8 @@ const Dashboard = () => {
               tasks={filteredTasks}
               subjects={subjects}
               onTaskMove={handleMoveTask}
+              onEdit={handleEditTask}
+              onDelete={handleSoftDelete}
             />
           </div>
         ) : (

@@ -37,6 +37,13 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // Configurações comportamentais do SaaS
+  settings: {
+    email_deadlines: { type: Boolean, default: true },
+    email_weekly_summary: { type: Boolean, default: true },
+    timer_limit_hours: { type: Number, default: 4 },
+    weekly_study_goal_hours: { type: Number, default: 10 },
+  },
 }, {
   timestamps: true,
 });

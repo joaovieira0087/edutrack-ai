@@ -193,10 +193,91 @@ const authController = {
       const user = await User.findById(req.user.id).select('-senha');
       if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
-      // Xano mapeia alguns campos extras, vamos retornar uma estrutura compatível
-      res.json({ id: user._id, name: user.nome, email: user.email });
+      res.json({
+        id: user._id,
+        name: user.nome,
+        email: user.email,
+        settings: user.settings || {}
+      });
     } catch (error) {
       res.status(500).json({ message: 'Erro no servidor' });
+    }
+  },
+
+  /**
+   * Atualiza dados de perfil e/ou senha do usuário autenticado
+   * PUT /api/auth/profile
+   * Body: { name?, currentPassword?, newPassword?, confirmPassword? }
+   */
+  updateProfile: async (req, res) => {
+    try {
+      const { name, currentPassword, newPassword, confirmPassword } = req.body;
+
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+      // Atualiza nome se fornecido
+      if (name && name.trim()) {
+        user.nome = name.trim();
+      }
+
+      // Atualiza senha se os campos de senha foram enviados
+      if (currentPassword || newPassword || confirmPassword) {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+          return res.status(400).json({ message: 'Preencha todos os campos de senha.' });
+        }
+        if (newPassword !== confirmPassword) {
+          return res.status(400).json({ message: 'A nova senha e a confirmação não coincidem.' });
+        }
+        if (newPassword.length < 6) {
+          return res.status(400).json({ message: 'A nova senha deve ter no mínimo 6 caracteres.' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.senha);
+        if (!isMatch) {
+          return res.status(400).json({ message: 'Senha atual incorreta.' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.senha = await bcrypt.hash(newPassword, salt);
+      }
+
+      await user.save();
+
+      res.json({ message: 'Perfil atualizado com sucesso!', name: user.nome, email: user.email });
+    } catch (error) {
+      console.error('[AuthController] Erro em updateProfile:', error.message);
+      res.status(500).json({ message: 'Erro no servidor ao atualizar perfil.' });
+    }
+  },
+
+  /**
+   * Atualiza as configurações comportamentais do usuário
+   * PUT /api/auth/settings
+   * Body: { email_deadlines, email_weekly_summary, timer_limit_hours, weekly_study_goal_hours }
+   */
+  updateSettings: async (req, res) => {
+    try {
+      const { email_deadlines, email_weekly_summary, timer_limit_hours, weekly_study_goal_hours } = req.body;
+
+      const updatePayload = {};
+      if (email_deadlines !== undefined) updatePayload['settings.email_deadlines'] = email_deadlines;
+      if (email_weekly_summary !== undefined) updatePayload['settings.email_weekly_summary'] = email_weekly_summary;
+      if (timer_limit_hours !== undefined) updatePayload['settings.timer_limit_hours'] = Number(timer_limit_hours);
+      if (weekly_study_goal_hours !== undefined) updatePayload['settings.weekly_study_goal_hours'] = Number(weekly_study_goal_hours);
+
+      const user = await User.findByIdAndUpdate(
+        req.user.id,
+        { $set: updatePayload },
+        { new: true, select: '-senha' }
+      );
+
+      if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+      res.json({ message: 'Configurações salvas com sucesso!', settings: user.settings });
+    } catch (error) {
+      console.error('[AuthController] Erro em updateSettings:', error.message);
+      res.status(500).json({ message: 'Erro no servidor ao salvar configurações.' });
     }
   },
 

@@ -74,6 +74,16 @@ const authService = {
       confirmPassword
     });
     return response.data;
+  },
+
+  updateProfile: async (data) => {
+    const response = await authApi.put('/auth/profile', data);
+    return response.data;
+  },
+
+  updateSettings: async (settings) => {
+    const response = await authApi.put('/auth/settings', settings);
+    return response.data;
   }
 };
 

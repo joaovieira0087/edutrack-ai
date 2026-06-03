@@ -143,22 +143,26 @@ const CreateTaskModal = ({ isOpen, onClose, onSave, initialSubjectId }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300">Disciplina <span className="text-red-500">*</span></label>
-                <select
-                  name="subject_id"
-                  required
-                  disabled={!!initialSubjectId}
-                  value={formData.subject_id}
-                  onChange={handleChange}
-                  className={inputClass + " appearance-none cursor-pointer disabled:opacity-75"}
-                >
-                  <option value="" disabled>Selecione...</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300">Deadline <span className="text-red-500">*</span></label>
+              {!initialSubjectId && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-slate-300">Disciplina <span className="text-red-500">*</span></label>
+                  <select
+                    name="subject_id"
+                    required
+                    value={formData.subject_id}
+                    onChange={handleChange}
+                    className={inputClass + " appearance-none cursor-pointer"}
+                  >
+                    <option value="" disabled>Selecione...</option>
+                    {subjects.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className={`space-y-2 ${initialSubjectId ? 'md:col-span-2' : ''}`}>
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  Prazo Final de Entrega <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   name="data_prevista"
@@ -167,6 +171,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSave, initialSubjectId }) => {
                   onChange={handleChange}
                   className={inputClass}
                 />
+                <p className="text-[11px] text-gray-400 dark:text-slate-500 font-medium ml-1">Selecione a data do calendário em que esta tarefa precisa ser entregue.</p>
               </div>
             </div>
 
@@ -274,9 +279,12 @@ const CreateTaskModal = ({ isOpen, onClose, onSave, initialSubjectId }) => {
               </div>
             </div>
 
-            <div className="p-5 bg-blue-50/30 dark:bg-slate-900/20 rounded-2xl border border-blue-100/50 dark:border-blue-900/30">
+            <div className="p-5 bg-blue-50/30 dark:bg-slate-800/40 rounded-2xl border border-blue-100/50 dark:border-slate-700/40">
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300">Tempo Estimado (minutos)</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Tempo de Foco Estimado (minutos)
+                </label>
                 <input 
                   type="number" 
                   name="tempo_estimado" 
@@ -284,8 +292,11 @@ const CreateTaskModal = ({ isOpen, onClose, onSave, initialSubjectId }) => {
                   value={formData.tempo_estimado} 
                   onChange={handleChange} 
                   className={inputClass} 
-                  placeholder="Ex: 60" 
+                  placeholder="Ex: 30, 60, 90, 120" 
                 />
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 font-medium leading-relaxed ml-1">
+                  Insira quantos minutos você pretende passar focado executando ativamente esta tarefa (Ex: 30, 60, 90, 120 minutos). Este valor alimenta o cronômetro e os gráficos de desempenho da IA — não tem relação com o prazo de entrega acima.
+                </p>
               </div>
             </div>
 
