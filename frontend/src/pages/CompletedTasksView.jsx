@@ -8,6 +8,8 @@ const CompletedTasksView = () => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -24,6 +26,14 @@ const CompletedTasksView = () => {
       }
     };
     fetchData();
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    const handleUpdate = () => setRefreshTrigger(prev => prev + 1);
+    window.addEventListener('tasks-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('tasks-updated', handleUpdate);
+    };
   }, []);
 
   const toggleTaskStatus = async (task) => {

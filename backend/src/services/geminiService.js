@@ -201,8 +201,59 @@ function generateFallbackTaskInsight(taskData) {
   }
 }
 
+/**
+ * Gera uma descrição detalhada de atividade baseada em título e disciplina.
+ */
+async function generateCopilotDescription(titulo, materia) {
+  try {
+    const gemini = getModel();
+    const prompt = `
+Você é o Copiloto de IA do EduTrack AI, um assistente especializado em apoiar estudantes universitários na organização de suas tarefas e planos de estudos.
+
+O estudante quer criar uma atividade com os seguintes detalhes:
+- Título da Tarefa: "${titulo}"
+- Disciplina/Matéria: "${materia}"
+
+Sua missão é gerar uma descrição altamente detalhada, estruturada e motivadora para esta tarefa, para que o estudante possa segui-la como um guia passo a passo de estudos.
+
+Siga rigorosamente estas diretrizes de formatação:
+1. Use formatação Markdown completa e elegante.
+2. Divida a descrição em seções lógicas:
+   - **Objetivo da Tarefa**: Explicação do que o aluno irá aprender ou entregar.
+   - **Roteiro de Estudos / Passo a Passo**: Tópicos enumerados ou marcados com orientações práticas para a execução da tarefa.
+   - **Materiais Sugeridos / Dicas de Pesquisa**: Onde procurar informações ou dicas de estudo.
+3. Mantenha um tom profissional, acolhedor e focado em produtividade acadêmica.
+4. O conteúdo deve ser rico, com tópicos acadêmicos reais apropriados para o tema.
+5. Responda apenas em português brasileiro.
+
+Não inclua cabeçalhos extras, introduções amigáveis antes ou notas de rodapé após o Markdown. Retorne diretamente o texto Markdown da descrição.
+`.trim();
+
+    const result = await gemini.generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error('Erro na API Gemini para copiloto:', error.message);
+    // Fallback amigável se a API falhar
+    return `
+### **Objetivo da Tarefa**
+Compreender e aplicar os conceitos principais relacionados a **${titulo}** na disciplina de **${materia}**.
+
+### **Roteiro de Estudos / Passo a Passo**
+1. **Revisão Bibliográfica**: Leia as notas de aula e os capítulos recomendados sobre o tema.
+2. **Definição de Conceitos**: Faça um resumo dos principais termos teóricos.
+3. **Resolução de Exercícios**: Pratique com problemas conceituais e estudos de caso sugeridos.
+4. **Auto-avaliação**: Escreva um breve resumo contendo as conclusões principais e lições aprendidas.
+
+### **Dicas de Estudo**
+- Dedique blocos focados de 25-50 minutos para cada etapa.
+- Busque referências adicionais na biblioteca digital ou artigos científicos do tema.
+`.trim();
+  }
+}
+
 module.exports = {
   generateStudyInsights,
   generateFallbackInsights,
   generateTaskInsight,
+  generateCopilotDescription,
 };

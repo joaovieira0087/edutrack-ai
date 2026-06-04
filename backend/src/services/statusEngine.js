@@ -138,6 +138,20 @@ const statusEngine = {
 
       if (effectiveStatus !== task.status) {
         const oldStatus = task.status;
+
+        // Se estava em_andamento e mudou, fechar a sessão de foco
+        if (oldStatus === 'em_andamento') {
+          const User = require('../models/User');
+          const user = await User.findById(userId);
+          const limitHours = user?.settings?.timer_limit_hours ?? 4;
+          task.closeSession(limitHours);
+        }
+
+        // Se mudou para em_andamento, iniciar a sessão de foco
+        if (effectiveStatus === 'em_andamento') {
+          task.startSession();
+        }
+
         task.status = effectiveStatus;
 
         // Registrar no histórico

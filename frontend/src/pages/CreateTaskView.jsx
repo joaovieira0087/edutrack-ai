@@ -18,6 +18,19 @@ const CreateTaskView = () => {
     taskService.getAll().then(setAllTasks).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    const handleCopyAiDescription = (e) => {
+      setFormData(prev => ({
+        ...prev,
+        descricao: e.detail
+      }));
+    };
+    window.addEventListener('copy-ai-description', handleCopyAiDescription);
+    return () => {
+      window.removeEventListener('copy-ai-description', handleCopyAiDescription);
+    };
+  }, []);
+
   const handleDependenciesChange = (e) => {
     const value = Array.from(e.target.selectedOptions, option => option.value);
     setFormData(prev => ({ ...prev, blocked_by: value }));

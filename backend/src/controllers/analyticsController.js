@@ -443,6 +443,22 @@ const analyticsController = {
       res.status(500).json({ message: 'Erro ao buscar tarefas concluídas para insights.', error: error.message });
     }
   },
+
+  // POST /api/analytics/copiloto
+  generateCopilotDescription: async (req, res) => {
+    try {
+      const { titulo, materia } = req.body;
+      if (!titulo || !materia) {
+        return res.status(400).json({ message: 'Título e Matéria são obrigatórios.' });
+      }
+
+      const description = await geminiService.generateCopilotDescription(titulo, materia);
+      return res.json({ description });
+    } catch (error) {
+      console.error('Erro ao gerar descrição do copiloto:', error);
+      res.status(500).json({ message: 'Erro ao gerar descrição da atividade.', error: error.message });
+    }
+  },
 };
 
 module.exports = analyticsController;

@@ -206,9 +206,6 @@ const KanbanCard = ({ task, subject, onEdit, onDelete }) => {
         </div>
 
       </div>
-
-      {/* Subtle glass highlight — light mode only, no gradient in dark */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent dark:from-transparent dark:to-transparent rounded-2xl pointer-events-none"></div>
     </div>
   );
 };
@@ -218,6 +215,9 @@ const KanbanCard = ({ task, subject, onEdit, onDelete }) => {
 // ----------------------------------------------------
 const KanbanView = ({ tasks, subjects, onTaskMove, onEdit, onDelete }) => {
   const [activeTask, setActiveTask] = useState(null);
+  const [showGuide, setShowGuide] = useState(() => {
+    return sessionStorage.getItem('edutrack-dismissed-timer-guide') !== 'true';
+  });
 
   const columnsDef = [
     { id: 'pendente', title: 'A Fazer', icon: <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/30"></span>, bgGradient: 'bg-amber-50/30 dark:bg-amber-900/5', headerBg: 'bg-amber-100/50 dark:bg-amber-900/10' },
@@ -274,13 +274,45 @@ const KanbanView = ({ tasks, subjects, onTaskMove, onEdit, onDelete }) => {
   };
 
   return (
-    <DndContext 
-      sensors={sensors}
-      collisionDetection={closestCorners} 
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar pt-2 snap-x snap-mandatory">
+    <div className="space-y-6">
+      {showGuide && (
+        <div className="bg-indigo-50/90 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-5 flex items-start justify-between gap-4 transition-all duration-300 relative shadow-sm">
+          <div className="flex gap-3">
+            {/* Bulb/Timer Icon */}
+            <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl shrink-0 mt-0.5">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">Dica de Produtividade do EduTrack</h4>
+              <p className="text-xs text-indigo-800/90 dark:text-indigo-300/80 leading-relaxed font-medium">
+                💡 Para manter os insights da IA 100% precisos, lembre-se da regra de ouro: deu uma pausa nos estudos? Mova o card de volta para 'Pendente'. Voltou a focar? Dê o Play movendo-o para 'Em Progresso'. Faça isso repetidas vezes até concluir totalmente a atividade!
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              setShowGuide(false);
+              sessionStorage.setItem('edutrack-dismissed-timer-guide', 'true');
+            }}
+            className="text-indigo-400 hover:text-indigo-600 dark:text-indigo-500 dark:hover:text-indigo-300 p-1 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors shrink-0"
+            title="Entendi a Regra"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCorners} 
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar pt-2 snap-x snap-mandatory">
         {columnsDef.map(col => {
           // Exclude tasks not matching status
           const colTasks = tasks.filter(t => t.status === col.id);
@@ -311,7 +343,8 @@ const KanbanView = ({ tasks, subjects, onTaskMove, onEdit, onDelete }) => {
         {activeTask ? <div className="scale-105 shadow-xl rotate-3 opacity-90 transition-transform"><KanbanCard task={activeTask} subject={subjects.find(s => String(s.id) === String(activeTask.subject_id))} /></div> : null}
       </DragOverlay>
     </DndContext>
-  );
+  </div>
+);
 };
 
 export default KanbanView;

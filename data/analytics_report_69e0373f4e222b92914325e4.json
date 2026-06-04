@@ -1,5 +1,5 @@
 {
-    "generated_at": "2026-06-03T00:28:47",
+    "generated_at": "2026-06-03T19:17:13",
     "user_id": "69e0373f4e222b92914325e4",
     "subjects": [
         {
@@ -7,37 +7,37 @@
             "nome": "testee",
             "subject_name": "testee",
             "progress_weighted": 100.0,
-            "total_weight": 8,
-            "completed_weight": 8,
-            "time_real_min": 5,
-            "total_hours": 0.08,
-            "time_estimated_min": 29,
-            "efficiency_ratio": 0.17,
-            "deviation_percent": -82.76
+            "total_weight": 18,
+            "completed_weight": 18,
+            "time_real_min": 1112,
+            "total_hours": 18.53,
+            "time_estimated_min": 119,
+            "efficiency_ratio": 9.34,
+            "deviation_percent": 834.45
         }
     ],
     "global_metrics": {
         "overall_progress": 100.0,
-        "total_points": 8,
-        "completed_points": 8,
-        "velocity_points_per_min": 1.6,
-        "total_time_spent_min": 5,
-        "total_time_estimated_min": 29,
-        "forecasted_completion_date": "2026-06-03T00:28:47",
-        "global_deviation_percent": -82.76
+        "total_points": 18,
+        "completed_points": 18,
+        "velocity_points_per_min": 0.0162,
+        "total_time_spent_min": 1112,
+        "total_time_estimated_min": 119,
+        "forecasted_completion_date": "2026-06-03T19:17:13",
+        "global_deviation_percent": 834.45
     },
     "deviations": [
         {
             "subject": "testee",
-            "deviation_percent": -82.76,
-            "status": "abaixo"
+            "deviation_percent": 834.45,
+            "status": "acima"
         }
     ],
     "insights_context": {
         "total_subjects": 1,
         "subjects_with_time_data": 1,
-        "subjects_above_schedule": 0,
-        "subjects_below_schedule": 1,
+        "subjects_above_schedule": 1,
+        "subjects_below_schedule": 0,
         "subjects_on_track": 0
     }
 }

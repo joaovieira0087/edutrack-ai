@@ -41,6 +41,10 @@ const ActivitiesTreeView = () => {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('tasks-updated', loadData);
+    return () => {
+      window.removeEventListener('tasks-updated', loadData);
+    };
   }, []);
 
   const handleOpenCreateTask = (subjectId) => {

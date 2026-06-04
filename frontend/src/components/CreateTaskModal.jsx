@@ -44,6 +44,21 @@ const CreateTaskModal = ({ isOpen, onClose, onSave, initialSubjectId }) => {
     }
   }, [isOpen, initialSubjectId]);
 
+  useEffect(() => {
+    const handleCopyAiDescription = (e) => {
+      if (isOpen) {
+        setFormData(prev => ({
+          ...prev,
+          descricao: e.detail
+        }));
+      }
+    };
+    window.addEventListener('copy-ai-description', handleCopyAiDescription);
+    return () => {
+      window.removeEventListener('copy-ai-description', handleCopyAiDescription);
+    };
+  }, [isOpen]);
+
   const handleDependenciesChange = (e) => {
     const value = Array.from(e.target.selectedOptions, option => option.value);
     setFormData(prev => ({ ...prev, blocked_by: value }));

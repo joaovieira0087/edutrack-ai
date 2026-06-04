@@ -61,6 +61,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
+    window.addEventListener('tasks-updated', fetchData);
+    return () => {
+      window.removeEventListener('tasks-updated', fetchData);
+    };
   }, [fetchData]);
 
   /**

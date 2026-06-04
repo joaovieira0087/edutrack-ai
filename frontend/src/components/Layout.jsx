@@ -2,13 +2,25 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import AiChatDrawer from './AiChatDrawer';
 
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+
+  React.useEffect(() => {
+    const handleTasksUpdated = () => {
+      console.log('[Layout] Tasks updated via agent. Views notified.');
+    };
+    window.addEventListener('tasks-updated', handleTasksUpdated);
+    return () => {
+      window.removeEventListener('tasks-updated', handleTasksUpdated);
+    };
+  }, []);
 
   const displayName = user?.name || 'Usuário';
 
@@ -129,44 +141,61 @@ const Layout = ({ children }) => {
       </aside>
 
       {/* ─── Main Content Area ──────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Header — sem theme toggle (movido para sidebar) */}
-        <header className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-700 h-16 flex items-center justify-between px-4 sm:px-8 z-10 sticky top-0 transition-shadow">
-          {/* Mobile hamburger */}
-          <button
-            className="lg:hidden text-gray-400 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100/50 focus:outline-none transition-colors"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+      <div className="flex-1 flex flex-row overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Header — sem theme toggle (movido para sidebar) */}
+          <header className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-700 h-16 flex items-center justify-between px-4 sm:px-8 z-10 sticky top-0 transition-shadow">
+            {/* Mobile hamburger */}
+            <button
+              className="lg:hidden text-gray-400 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100/50 focus:outline-none transition-colors"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
 
-          {/* Breadcrumb */}
-          <div className="hidden lg:flex items-center text-sm font-medium text-gray-400 dark:text-slate-500">
-            Painel Central &raquo; <span className="ml-2 text-blue-600 dark:text-blue-400">{location.pathname}</span>
-          </div>
-
-          {/* Right: User pill → navigate to /perfil */}
-          <div
-            className="flex items-center gap-3 ml-auto cursor-pointer group"
-            onClick={() => navigate('/perfil')}
-            title="Meu Perfil"
-          >
-            <span className="text-gray-600 dark:text-slate-300 text-sm font-medium hidden sm:block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Olá, <span className="text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 font-bold">{displayName}</span>
-            </span>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-white shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
-              {displayName.charAt(0).toUpperCase()}
+            {/* Breadcrumb */}
+            <div className="hidden lg:flex items-center text-sm font-medium text-gray-400 dark:text-slate-500">
+              Painel Central &raquo; <span className="ml-2 text-blue-600 dark:text-blue-400">{location.pathname}</span>
             </div>
-          </div>
-        </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50/30 dark:bg-slate-900/40">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+            {/* Right: AI Copilot Toggle + User pill → navigate to /perfil */}
+            <div className="flex items-center gap-3 ml-auto">
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm border ${isChatOpen ? 'bg-indigo-600 text-white border-transparent' : 'bg-blue-50/80 text-blue-700 hover:bg-blue-100/80 border-blue-100/30 dark:bg-slate-800 dark:text-blue-400 dark:hover:bg-slate-700/80 dark:border-slate-700'}`}
+                title={isChatOpen ? 'Fechar Copiloto IA' : 'Abrir Copiloto IA'}
+              >
+                <svg className={`w-4 h-4 ${isChatOpen ? '' : 'animate-pulse text-indigo-500'}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Copiloto IA</span>
+              </button>
+
+              <div
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => navigate('/perfil')}
+                title="Meu Perfil"
+              >
+                <span className="text-gray-600 dark:text-slate-300 text-sm font-medium hidden sm:block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  Olá, <span className="text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 font-bold">{displayName}</span>
+                </span>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-white shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50/30 dark:bg-slate-900/40">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
+
+        <AiChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
     </div>
   );

@@ -20,4 +20,7 @@ router.get('/tasks/completed', analyticsController.getCompletedTasks);
 // Insights por tarefa atômica
 router.get('/tasks/:id/insights', analyticsController.getTaskAIInsights);
 
+// Copiloto IA (Geração de descrição)
+router.post('/copiloto', analyticsController.generateCopilotDescription);
+
 module.exports = router;

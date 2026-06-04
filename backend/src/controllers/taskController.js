@@ -1,4 +1,5 @@
 const AcademicTask = require('../models/AcademicTask');
+const User = require('../models/User');
 const statusEngine = require('../services/statusEngine');
 
 /**
@@ -147,6 +148,9 @@ const taskController = {
 
       // Forçar tempo_real=0 na criação — valor será calculado via transições de estado
       body.tempo_real = 0;
+      if (body.status === 'em_andamento') {
+        body.session_started_at = new Date();
+      }
 
       const statusLabel = body.status || 'pendente';
       const newTask = new AcademicTask({
@@ -192,48 +196,22 @@ const taskController = {
           return res.status(400).json({ message: transition.reason });
         }
 
+        // Fechar sessão de foco se estava em_andamento
+        if (currentTask.status === 'em_andamento') {
+          const user = await User.findById(req.user.id);
+          const limitHours = user?.settings?.timer_limit_hours ?? 4;
+          currentTask.closeSession(limitHours);
+        }
+
+        // Iniciar sessão de foco se está entrando em em_andamento
+        if (body.status === 'em_andamento') {
+          currentTask.startSession();
+        }
+
         // Registrar timestamps de conclusão
         if (body.status === 'concluida') {
           body.completed_at = new Date();
-
-          // --- CÁLCULO AUTOMÁTICO DO TEMPO REAL (History Scan) ---
-          let timestamp_inicio = null;
-          if (currentTask.history && currentTask.history.length > 0) {
-            for (const entry of currentTask.history) {
-              const action = entry.action;
-              const details = entry.details || '';
-
-              if (action === 'Criação') {
-                timestamp_inicio = entry.timestamp;
-                break;
-              }
-
-              const detailsLower = details.toLowerCase();
-              const isEdicaoOrStatus = action === 'Edição' || action === 'Auto-Status';
-              const isTargetStatus = detailsLower.includes('em_andamento') || 
-                                     detailsLower.includes('em andamento') || 
-                                     detailsLower.includes('pendente');
-
-              if (isEdicaoOrStatus && isTargetStatus) {
-                timestamp_inicio = entry.timestamp;
-                break;
-              }
-            }
-          }
-
-          if (!timestamp_inicio) {
-            timestamp_inicio = currentTask.createdAt;
-          }
-
-          let tempo_calculado = 1;
-          if (timestamp_inicio) {
-            const diffMs = Date.now() - new Date(timestamp_inicio).getTime();
-            tempo_calculado = Math.max(1, Math.round(diffMs / 60000));
-          }
-
-          body.tempo_real = tempo_calculado;
-          // --- FIM DO CÁLCULO ---
-        } else if (currentTask.status === 'concluida' && body.status !== 'concluida') {
+        } else if (currentTask.status === 'concluida') {
           body.completed_at = null;
         }
       }
@@ -273,31 +251,30 @@ const taskController = {
       const isConcluir = body.status === 'concluida' && currentTask.status !== 'concluida';
       const actionLabel = isConcluir ? 'Conclusão' : 'Edição';
       const detailsLabel = isConcluir 
-        ? `Tarefa concluída. Tempo real gasto: ${body.tempo_real} minuto(s).` 
+        ? `Tarefa concluída. Tempo real gasto: ${currentTask.tempo_real} minuto(s).` 
         : details;
 
-      const updatedTask = await AcademicTask.findOneAndUpdate(
-        { _id: id, user_id: req.user.id },
-        {
-          $set: body,
-          $push: {
-            history: {
-              action: actionLabel,
-              timestamp: new Date(),
-              details: detailsLabel,
-            },
-          },
-        },
-        { new: true }
-      );
+      // Aplicar campos do body à tarefa, ignorando metadados de sessão e ID
+      const ignoredFields = ['tempo_real', 'tempo_real_acumulado', 'session_started_at', 'focus_sessions', 'history', '_id'];
+      Object.keys(body).forEach(key => {
+        if (!ignoredFields.includes(key)) {
+          currentTask[key] = body[key];
+        }
+      });
 
-      if (!updatedTask) return res.status(404).json({ message: 'Tarefa não encontrada' });
+      // Adicionar entrada ao histórico
+      currentTask.history.push({
+        action: actionLabel,
+        timestamp: new Date(),
+        details: detailsLabel,
+      });
+
+      // Salvar tarefa
+      const updatedTask = await currentTask.save();
 
       // ═══ Efeito Cascata de Desbloqueio ═══
-      // Ao concluir uma tarefa, verificar se outras tarefas dependem dela
       let unblockedTasks = [];
-      const finalStatus = body.status || currentTask.status;
-      if (finalStatus === 'concluida') {
+      if (updatedTask.status === 'concluida') {
         const dependents = await AcademicTask.find({
           user_id: req.user.id,
           blocked_by: id,
@@ -305,14 +282,12 @@ const taskController = {
           is_deleted: false,
         });
 
-        // Para cada dependente, verificar se TODAS as deps estão resolvidas
         const allUserTasks = await AcademicTask.find({
           user_id: req.user.id,
           is_deleted: false,
         });
         const plainTasks = allUserTasks.map(t => {
           const obj = t.toObject();
-          // Incluir a tarefa recém-atualizada com seu novo status
           if (String(obj._id) === String(id)) obj.status = 'concluida';
           return obj;
         });
@@ -331,7 +306,7 @@ const taskController = {
           }
         }
 
-        // Regenerate analytics_report.json synchronously to ensure frontend gets updated data
+        // Regenerate analytics_report.json
         try {
           const { execSync } = require('child_process');
           const path = require('path');
