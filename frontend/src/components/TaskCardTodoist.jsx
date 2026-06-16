@@ -48,7 +48,6 @@ const getTagIcon = (tagStr) => {
   const lower = tagStr.toLowerCase();
   if (lower.includes('prova')) return <svg className="w-2.5 h-2.5 mr-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>;
   if (lower.includes('leitura') || lower.includes('livro')) return <svg className="w-2.5 h-2.5 mr-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.754 5 4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
-  if (lower.includes('grupo') || lower.includes('peso')) return <svg className="w-2.5 h-2.5 mr-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
   return <svg className="w-2.5 h-2.5 mr-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>;
 };
 
@@ -58,25 +57,82 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
   const sConfig = statusConfig[task.status] || statusConfig.pendente;
   const isBlocked = task.status === 'bloqueada';
   const isDone = task.status === 'concluida';
+  const isEmAndamento = task.status === 'em_andamento';
   const peso = Number(task.peso) || 1;
+
+  // Live Timer states & calculations
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  const [localStartTime] = React.useState(() => {
+    if (task.session_started_at) {
+      return new Date(task.session_started_at).getTime();
+    }
+    return Date.now();
+  });
+
+  React.useEffect(() => {
+    if (!isEmAndamento) return;
+
+    // Set initial diff immediately
+    const start = task.session_started_at ? new Date(task.session_started_at).getTime() : localStartTime;
+    setElapsedSeconds(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+
+    const interval = setInterval(() => {
+      const diffSecs = Math.max(0, Math.floor((Date.now() - start) / 1000));
+      setElapsedSeconds(diffSecs);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isEmAndamento, task.session_started_at, localStartTime]);
+
+  const totalMinutes = Math.floor((task.tempo_real || 0) + elapsedSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  const timerText = hours > 0 ? `${hours}h ${mins}min` : `${totalMinutes}min`;
+
+  const estimated = Number(task.tempo_estimado) || 0;
+
+  const tagsList = Array.isArray(task.tags) 
+    ? task.tags 
+    : typeof task.tags === 'string' 
+      ? task.tags.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
 
   const colors = { 
     dueDate: overdue || task.status === 'atrasada'
-      ? 'border-red-100 text-red-600 bg-red-50' 
+      ? 'border-red-100 text-red-600 bg-red-50 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400' 
       : isDone 
-        ? 'border-gray-100 text-gray-400 bg-gray-50' 
-        : 'border-emerald-100 text-emerald-600 bg-emerald-50' 
+        ? 'border-gray-100 text-gray-400 bg-gray-50 dark:border-slate-700/30 dark:bg-slate-800/20 dark:text-slate-500' 
+        : 'border-emerald-100 text-emerald-600 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-450' 
   };
+
+  const statusBorders = {
+    pendente: 'border-l-4 border-l-amber-500/80 dark:border-l-amber-500/80',
+    em_andamento: 'border-l-4 border-l-blue-500 dark:border-l-cyan-400',
+    concluida: 'border-l-4 border-l-emerald-500 dark:border-l-emerald-500',
+    atrasada: 'border-l-4 border-l-red-500 dark:border-l-red-500',
+    bloqueada: 'border-l-4 border-l-slate-400 dark:border-l-slate-600',
+  };
+
+  const hoverGlows = {
+    pendente: 'hover:shadow-[0_8px_24px_rgba(245,158,11,0.06)] hover:border-amber-200/60 dark:hover:border-amber-500/30',
+    em_andamento: 'hover:shadow-[0_8px_24px_rgba(59,130,246,0.1)] dark:hover:shadow-[0_8px_32px_rgba(34,211,238,0.15)] hover:border-blue-200 dark:hover:border-cyan-500/30',
+    concluida: 'hover:shadow-[0_8px_24px_rgba(16,185,129,0.06)] hover:border-emerald-200/60 dark:hover:border-emerald-500/30',
+    atrasada: 'hover:shadow-[0_8px_24px_rgba(239,68,68,0.1)] hover:border-red-200/60 dark:hover:border-red-500/30',
+    bloqueada: 'hover:shadow-[0_8px_24px_rgba(148,163,184,0.06)] hover:border-slate-200/60 dark:hover:border-slate-500/30',
+  };
+
+  const activeBorder = statusBorders[task.status] || statusBorders.pendente;
+  const activeGlow = hoverGlows[task.status] || hoverGlows.pendente;
 
   return (
     <div 
       onClick={() => onViewDetails && onViewDetails(task)}
-      className={`flex flex-col sm:flex-row items-start gap-4 py-4 px-4 bg-white dark:bg-[#1e2a3a] border border-gray-100/50 dark:border-slate-600/40 hover:bg-white dark:hover:bg-[#223145] hover:shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:hover:shadow-lg dark:hover:shadow-black/20 hover:border-gray-200 dark:hover:border-slate-500/50 transition-all group cursor-pointer rounded-2xl relative ${isDone ? 'opacity-60' : ''} ${isBlocked ? 'opacity-70 border-dashed' : ''} h-auto`}
+      className={`flex flex-col sm:flex-row items-start gap-4 p-5 bg-white dark:bg-[#0e1322]/85 backdrop-blur-md border border-gray-100/70 dark:border-white/[0.04] shadow-[0_2px_8px_rgba(0,0,0,0.01)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300 group cursor-pointer rounded-[20px] relative ${isDone ? 'opacity-60' : ''} ${isBlocked ? 'opacity-70 border-dashed' : ''} ${activeBorder} ${activeGlow} h-auto`}
     >
       {/* Primary Action Button (Checkbox/Locked padlock) */}
       <div className="pt-0.5 relative z-10 shrink-0">
         {isBlocked ? (
-          <div className="w-5 h-5 rounded-full border-[1.5px] border-gray-300 dark:border-slate-600 flex items-center justify-center bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-500 cursor-not-allowed" title="Tarefa bloqueada por dependência">
+          <div className="w-5 h-5 rounded-full border-[1.5px] border-gray-300 dark:border-slate-700 flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed" title="Tarefa bloqueada por dependência">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
           </div>
         ) : (
@@ -84,7 +140,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
             onClick={(e) => { e.stopPropagation(); onToggleStatus(task); }}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-            className={`w-5 h-5 rounded-full border-[1.5px] border-gray-300 dark:border-slate-650 flex items-center justify-center transition-all duration-350 group-hover:border-gray-500 dark:group-hover:border-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 ${
+            className={`w-5 h-5 rounded-full border-[1.5px] border-gray-300 dark:border-slate-700 flex items-center justify-center transition-all duration-350 group-hover:border-gray-500 dark:group-hover:border-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 ${
               isDone 
                 ? 'bg-emerald-500 border-emerald-500 text-white' 
                 : 'bg-transparent text-transparent hover:text-gray-400 dark:hover:text-slate-400 pb-[1px]'
@@ -95,7 +151,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
         )}
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5 h-auto">
+      <div className="flex-1 min-w-0 flex flex-col gap-3 h-auto">
         {/* Disciplina no Topo */}
         {subject && (
           <div className="flex items-center h-auto">
@@ -107,13 +163,13 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
         )}
 
         {/* Título da Tarefa e Badges de Status (Atrasada/Bloqueada) no Meio */}
-        <div className="flex flex-col gap-1 h-auto">
+        <div className="flex flex-col gap-1.5 h-auto">
           <div className="flex items-center flex-wrap gap-2 h-auto">
-            <h4 className={`text-sm font-bold truncate ${isDone ? 'text-gray-400 dark:text-slate-500 line-through' : 'text-gray-800 dark:text-slate-200'}`}>
+            <h4 className={`text-sm font-semibold truncate ${isDone ? 'text-gray-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
               {task.titulo}
             </h4>
             {(task.status === 'atrasada' || task.status === 'bloqueada') && (
-              <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${sConfig.bg} ${sConfig.color} ${sConfig.border} dark:bg-slate-700/80 dark:text-slate-300 dark:border-slate-650/50`}>
+              <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${sConfig.bg} ${sConfig.color} ${sConfig.border} dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/50`}>
                 {sConfig.icon && <span className="mr-0.5 text-[8px]">{sConfig.icon}</span>}
                 {sConfig.label}
               </span>
@@ -121,7 +177,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
           </div>
 
           {task.descricao && (
-            <p className={`text-[11px] leading-relaxed line-clamp-2 ${isDone ? 'text-gray-300 dark:text-slate-500' : 'text-gray-500 dark:text-slate-400'}`}>
+            <p className={`text-[11px] leading-relaxed line-clamp-2 ${isDone ? 'text-gray-300 dark:text-slate-500 line-through opacity-70' : 'text-slate-500 dark:text-slate-400/90'}`}>
               {task.descricao}
             </p>
           )}
@@ -131,7 +187,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
               {task.blocked_by.map((dep, idx) => {
                 const title = typeof dep === 'object' && dep.titulo ? dep.titulo : String(dep).slice(-6);
                 return (
-                  <span key={idx} className="inline-flex items-center text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-50/80 dark:bg-red-950/20 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-950/40" title="Dependência">
+                  <span key={idx} className="inline-flex items-center text-[9px] font-bold text-red-655 dark:text-red-400 bg-red-50/80 dark:bg-red-950/20 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-950/40" title="Dependência">
                     <svg className="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     {title}
                   </span>
@@ -141,11 +197,35 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
           )}
         </div>
 
+        {/* Tags Acadêmicas */}
+        {tagsList.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-0.5">
+            {tagsList.map((tag, idx) => {
+              const customIcon = getTagIcon(tag);
+              const tagIcon = customIcon || (
+                <svg className="w-2.5 h-2.5 mr-1 text-slate-400 dark:text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581a1.5 1.5 0 0 0 2.122 0l4.318-4.318a1.5 1.5 0 0 0 0-2.122L11.16 3.659A2.25 2.25 0 0 0 9.568 3Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 7.5h.008v.008H6V7.5Z" />
+                </svg>
+              );
+              return (
+                <span 
+                  key={idx} 
+                  className="inline-flex items-center text-[10px] font-medium px-2.5 py-0.5 rounded-full bg-slate-50 dark:bg-white/[0.03] text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-white/[0.04] transition-all hover:bg-slate-100/50 dark:hover:bg-white/[0.06] shadow-sm select-none"
+                >
+                  {tagIcon}
+                  <span className="leading-none">{tag}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Base Row: Datas, Peso, Bandeira de Prioridade e Ícone de Anexo alinhados horizontalmente */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-gray-50 dark:border-slate-700/50 h-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-0.5 pt-2 border-t border-gray-100/80 dark:border-white/[0.04] h-auto">
           <div className="flex items-center gap-1.5 flex-wrap h-auto">
             {task.data_prevista && (
-              <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border bg-white dark:bg-slate-700/40 ${colors.dueDate} dark:text-slate-300 dark:border-slate-600/30 whitespace-nowrap`}>
+              <span className={`inline-flex items-center text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border bg-white dark:bg-slate-800/40 ${colors.dueDate} whitespace-nowrap`}>
                 <svg className="w-2.5 h-2.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 {new Date(task.data_prevista + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}
               </span>
@@ -153,7 +233,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
             
             {/* Peso indicator */}
             {peso > 1 && (
-              <span className="inline-flex items-center text-[9px] font-black text-indigo-500 dark:text-slate-300 bg-indigo-50 dark:bg-slate-700/40 px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-slate-600/30" title={`Peso: ${peso}`}>
+              <span className="inline-flex items-center text-[9px] font-black text-indigo-500 dark:text-slate-350 bg-indigo-50 dark:bg-slate-800/40 px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-white/[0.03]" title={`Peso: ${peso}`}>
                 <svg className="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
                 {peso}x
               </span>
@@ -183,7 +263,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
-                className="inline-flex items-center text-slate-400 dark:text-slate-400 hover:text-slate-650 dark:hover:text-slate-300" 
+                className="inline-flex items-center text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" 
                 title={`${task.attachments.length} anexo(s)`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -192,19 +272,47 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
               </span>
             )}
           </div>
-          
-          {/* Tags */}
-          {task.tags && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 ml-auto">
-              {task.tags.map((tag, idx) => (
-                <span key={idx} className="inline-flex items-center text-[9px] font-bold text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700/40 px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-600/30">
-                  {getTagIcon(tag)}
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
+
+        {/* Dynamic active timer for Em Progresso status */}
+        {isEmAndamento && (
+          <div className="flex flex-col gap-1.5 mt-0.5 pt-2.5 border-t border-slate-100/80 dark:border-white/[0.04] animate-fade-in">
+            {/* Duplo Tempo Row */}
+            <div className="flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
+              <div className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 opacity-80 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <span>
+                  Ativo: <span className="font-extrabold">{timerText}</span>
+                </span>
+                <span className="text-slate-300 dark:text-slate-700 mx-1">|</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  Meta: <span className="font-semibold">{estimated}min</span>
+                </span>
+              </div>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+            </div>
+
+            {/* Feedback Reverso / Motivational message */}
+            {estimated > 0 && (
+              <div className="text-[11px] leading-snug">
+                {estimated - totalMinutes > 0 ? (
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">
+                    Você tem <span className="font-bold text-blue-600/90 dark:text-blue-400/90">{estimated - totalMinutes}</span> minutos ainda até atingir o tempo que você estimou
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    Você passou <span className="font-extrabold text-amber-600 dark:text-amber-400">{totalMinutes - estimated}</span> minutos do tempo que você estimou
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hover Action Menu */}
@@ -212,7 +320,7 @@ const TaskCardTodoist = ({ task, subject, onToggleStatus, onEdit, onDelete, onVi
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
-        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute top-3 right-3 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-1 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm z-20"
+        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute top-3 right-3 flex items-center gap-1 bg-white/95 dark:bg-[#202024]/95 backdrop-blur-sm p-1 rounded-lg border border-slate-100 dark:border-white/[0.06] shadow-sm z-20"
       >
         {onEdit && (
           <button 

@@ -86,12 +86,7 @@ const LandingView = () => {
           {/* Left Column: Text */}
           <div className="flex flex-col gap-8 text-center lg:text-left">
             {/* Tech Badge */}
-            <div className="inline-flex self-center lg:self-start">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/50 dark:to-violet-950/50 border border-indigo-100 dark:border-indigo-800/50 text-xs font-bold text-indigo-700 dark:text-indigo-300 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50"></span>
-                Engine Analítico com Gemini 2.5 Pro Ativo
-              </span>
-            </div>
+
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight">

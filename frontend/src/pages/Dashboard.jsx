@@ -31,11 +31,21 @@ const Dashboard = () => {
   const [refreshInsightsTrigger, setRefreshInsightsTrigger] = useState(0);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [completedTaskData, setCompletedTaskData] = useState(null);
+  const [isStudyTimerPopupOpen, setIsStudyTimerPopupOpen] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
     localStorage.setItem('edutrack_view_mode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (isStudyTimerPopupOpen) {
+      const timer = setTimeout(() => {
+        setIsStudyTimerPopupOpen(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [isStudyTimerPopupOpen]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -97,6 +107,10 @@ const Dashboard = () => {
     }
 
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+
+    if (task.status === 'pendente' && newStatus === 'em_andamento') {
+      setIsStudyTimerPopupOpen(true);
+    }
     
     try {
       const response = await taskService.update(task.id, { status: newStatus });
@@ -129,6 +143,10 @@ const Dashboard = () => {
     // Optimistic Update
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
 
+    if (task.status === 'pendente' && newStatus === 'em_andamento') {
+      setIsStudyTimerPopupOpen(true);
+    }
+ 
     try {
       const response = await taskService.update(task.id, { status: newStatus });
       if (response && response.unblockedTasks && response.unblockedTasks.length > 0) {
@@ -727,6 +745,44 @@ const Dashboard = () => {
         />
       )}
 
+      {isStudyTimerPopupOpen && (
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/50 dark:border-white/[0.08] shadow-2xl rounded-2xl p-5 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start gap-3">
+            {/* Play/Study Icon */}
+            <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl shrink-0">
+              <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest">Aviso de Estudo</h4>
+                <button 
+                  onClick={() => setIsStudyTimerPopupOpen(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                  title="Fechar"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-200 dark:text-slate-350 font-semibold">
+                Você começou a estudar! Lembre-se: quando terminar de fazer essa disciplina, acabar uma parte dela ou precisar dar uma pausa, mova o card de volta para 'A Fazer' ou para 'Concluído'. Assim, o cronômetro para de contar o seu tempo em progresso!
+              </p>
+              <div className="pt-1">
+                <button
+                  onClick={() => setIsStudyTimerPopupOpen(false)}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg transition-all active:scale-95 shadow-sm"
+                >
+                  Entendi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

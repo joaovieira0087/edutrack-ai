@@ -166,45 +166,49 @@ const AiInsightsView = () => {
   // ==========================================
   if (taskId && taskInsight) {
     const taskData = taskInsight;
-    const classification = taskData?.classification || 'no_prazo';
+    const planejado = Number(taskData?.task?.tempo_estimado) || 0;
+    const real = Number(taskData?.task?.tempo_real) || 0;
+    const classification = real > planejado ? 'acima' : real < planejado ? 'abaixo' : 'no_prazo';
 
-    const classificationMap = {
-      acima: {
-        label: 'Desvio Alto (Sobrecarga)',
-        bg: 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50',
-        text: 'text-red-700 dark:text-red-400',
-        iconColor: 'text-red-500 dark:text-red-400',
-        icon: (
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        ),
-      },
-      abaixo: {
-        label: 'Alta Eficiência',
-        bg: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50',
-        text: 'text-emerald-700 dark:text-emerald-400',
-        iconColor: 'text-emerald-500 dark:text-emerald-400',
-        icon: (
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        ),
-      },
-      no_prazo: {
-        label: 'Dentro do Planejado',
-        bg: 'bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50',
-        text: 'text-blue-700 dark:text-blue-400',
-        iconColor: 'text-blue-500 dark:text-blue-400',
-        icon: (
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        ),
-      },
-    };
+    let cardTitle = 'DENTRO DO PRAZO';
+    let cardValue = '0%';
+    let cardSubtitle = 'Tempo cravado com o planejado';
+    let cardBg = 'bg-slate-100/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50';
+    let cardText = 'text-slate-600 dark:text-slate-400';
+    let cardIconColor = 'text-slate-400 dark:text-slate-500';
+    let cardIcon = (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
 
-    const currentClass = classificationMap[classification] || classificationMap.no_prazo;
+    if (real < planejado) {
+      const val = planejado > 0 ? Math.round(((planejado - real) / planejado) * 100) : 100;
+      cardTitle = 'ALTA EFICIÊNCIA';
+      cardValue = `+${val}%`;
+      cardSubtitle = 'De tempo economizado';
+      cardBg = 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50';
+      cardText = 'text-emerald-700 dark:text-emerald-400';
+      cardIconColor = 'text-emerald-500 dark:text-emerald-400';
+      cardIcon = (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      );
+    } else if (real > planejado) {
+      const val = planejado > 0 ? Math.round(((real - planejado) / planejado) * 100) : 100;
+      cardTitle = 'TEMPO EXCEDIDO';
+      cardValue = `-${val}%`;
+      cardSubtitle = 'A mais do que o estimado';
+      cardBg = 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50';
+      cardText = 'text-amber-800 dark:text-amber-400';
+      cardIconColor = 'text-amber-600 dark:text-amber-400';
+      cardIcon = (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      );
+    }
 
     return (
       <div className="flex flex-col gap-8 pb-12 max-w-4xl mx-auto h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -246,18 +250,18 @@ const AiInsightsView = () => {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Calculado silenciosamente pelo sistema</p>
           </div>
 
-          <div className={`border p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-between group h-auto ${currentClass.bg}`}>
+          <div className={`border p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-between group h-auto ${cardBg}`}>
             <div>
-              <span className={`text-xs font-extrabold uppercase tracking-widest ${currentClass.text}`}>
-                {currentClass.label}
+              <span className={`text-xs font-extrabold uppercase tracking-widest ${cardText}`}>
+                {cardTitle}
               </span>
               <h3 className="text-3xl font-black mt-3 text-slate-800 dark:text-slate-100">
-                {taskData?.deviation !== null ? `${taskData?.deviation > 0 ? '+' : ''}${taskData?.deviation}%` : '0%'}
+                {cardValue}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Desvio em relação ao planejado</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">{cardSubtitle}</p>
             </div>
-            <div className={`w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border border-inherit flex items-center justify-center shadow-inner shrink-0 ${currentClass.iconColor}`}>
-              {currentClass.icon}
+            <div className={`w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border border-inherit flex items-center justify-center shadow-inner shrink-0 ${cardIconColor}`}>
+              {cardIcon}
             </div>
           </div>
         </div>
